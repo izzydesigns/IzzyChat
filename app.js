@@ -27,6 +27,8 @@ function createWindow() {
         }
     });
 
+    mainWindow.title = "IzzyChat (v0.1)";
+
     // Load the HTML file
     mainWindow.loadFile(__dirname+'/public/index.html').then(r => {
         // Open DevTools during development (comment out for production)
