@@ -1,0 +1,3 @@
+Model: Deepseek R1 + DeepThink
+
+Prompt: Create a barebones web-based p2p chat app using WebRTC, Socket.io, Express, and Nodejs. Use Tailwind for styling, dark mode & rounded buttons desired. Page served with Express. Support for localhost/LAN testing is important. Connect with others via room ID & optional password. Max 10 users per room. Save user settings & chat history across sessions, important! Users can set their username & avatar image via a simple settings button & menu. Display username/avatars next to chat messages. Include "status" indicator to show the connection status. Use `console.log` for each connection step. Use descriptive JS code comments. Import socket.io via CDN, using "https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"

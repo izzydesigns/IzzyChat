@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>P2P Chat</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white h-screen">
+
+<div id="offline-overlay" class="w-full fixed z-10 text-center items-center">
+    <span class="p">Disconnected from server. Try reconnecting...</span>
+</div>
+
+<div class="container mx-auto p-4 h-full flex flex-col">
+    <div class="flex justify-between mb-4">
+        <div class="tabs" id="tabs"></div>
+        <button onclick="toggleSettings()" class="bg-gray-700 px-4 py-2 rounded-lg">⚙️</button>
+    </div>
+    <div class="flex-1 flex max-h-[calc(100%-3rem)]">
+        <div class="w-1/4 bg-gray-800 p-4 rounded-lg mr-4">
+            <h2 class="text-xl mb-4">Online Users</h2>
+            <div id="online-users" class="space-y-2"></div>
+        </div>
+        <div class="flex-1 bg-gray-800 rounded-lg p-4">
+            <div id="chat-container" class="h-[calc(100%-3rem)]"></div>
+            <div class="mt-4 flex">
+                <input id="message-input" class="flex-1 bg-gray-700 rounded-lg px-4 py-2 mr-2" placeholder="Type a message...">
+                <button onclick="sendMessage()" class="bg-blue-600 px-4 py-2 rounded-lg">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-50">
+    <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-auto mt-20">
+        <h3 class="text-xl mb-4">User Settings</h3>
+        <form id="settings-form" class="space-y-4">
+            <div>
+                <label class="block mb-2">Username</label>
+                <input id="username-input" class="w-full bg-gray-700 rounded p-2">
+            </div>
+            <div>
+                <label class="block mb-2">Avatar (emoji)</label>
+                <input id="avatar-input" maxlength="2" class="w-full bg-gray-700 rounded p-2">
+            </div>
+            <div>
+                <label class="block mb-2">Status Message (max 32 chars)</label>
+                <input id="status-input" maxlength="32" class="w-full bg-gray-700 rounded p-2">
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button type="button" onclick="toggleSettings()"
+                        class="bg-gray-600 px-4 py-2 rounded-lg">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="bg-blue-600 px-4 py-2 rounded-lg">
+                    Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="client.js"></script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+let socket;
+let currentTab = 'lobby';
+let peerConnections = {};
+let dataChannels = {};
+let userSettings = JSON.parse(localStorage.getItem('userSettings')) || {};
+let RTCconfig = {
+    iceServers: [
+        {urls: [
+                "stun:stun.l.google.com:19302",
+                "stun:global.stun.twilio.com:3478"
+            ]},
+        { // Add fallback TURN server (replace with your own)
+            urls: "turn:openrelay.metered.ca:80",
+            username: "openrelayproject",
+            credential: "openrelayproject"
+        },
+    ],
+    iceTransportPolicy: 'all', // Allow both UDP and TCP
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require'
+};
+
+async function initialize() {
+    socket = io('http://localhost:3000', {
+        reconnectionAttempts: Infinity,
+        timeout: 10000,
+        //transports: ['websocket']
+    });
+    setupSocketListeners();
+    loadSettings();
+    setupEventListeners();
+    setupChatWindow();
+
+    socket.emit('user-connected', { ...userSettings, id: socket.id });
+}
+function setupSocketListeners() {
+    socket.on('users-updated', updateOnlineUsers);
+    socket.on('lobby-message', handleLobbyMessage);
+    socket.on('user-disconnected', handleUserDisconnected);
+    socket.on('signal', handleSignal);
+}
+function handleSignal({ from, data }) {
+    if (data.type === 'offer') {
+        handleOffer(from, data);
+    } else if (data.type === 'answer') {
+        handleAnswer(from, data);
+    } else if (data.type === 'candidate') {
+        handleCandidate(from, data);
+    }
+}
+async function handleOffer(from, offer) {
+    const pc = new RTCPeerConnection(RTCconfig);
+    peerConnections[from] = pc;
+
+    pc.ondatachannel = (event) => {
+        const dc = event.channel;
+        setupDataChannel(from, dc);
+    };
+
+    await pc.setRemoteDescription(offer);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    socket.emit('signal', { to: from, data: answer });
+}
+function setupDataChannel(userId, dc) {
+    dataChannels[userId] = dc;
+
+    dc.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        addMessageToTab(userId, message);
+        saveChatHistory(userId, message);
+    };
+}
+async function startPM(userId) {
+    if (!peerConnections[userId]) {
+        const pc = new RTCPeerConnection(RTCconfig);
+        peerConnections[userId] = pc;
+
+        const dc = pc.createDataChannel('chat');
+        setupDataChannel(userId, dc);
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('signal', { to: userId, data: event.candidate });
+            }
+        };
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('signal', { to: userId, data: offer });
+
+        createTab(userId, `PM: ${userId.slice(-4)}`);
+        loadChatHistory(userId);
+    }
+    switchTab(userId);
+}
+function sendMessage() {
+    const input = document.getElementById('message-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    if (currentTab === 'lobby') {
+        socket.emit('lobby-message', {
+            user: userSettings.username,
+            message,
+            timestamp: new Date().toISOString()
+        });
+    } else {
+        const dc = dataChannels[currentTab];
+        if (dc?.readyState === 'open') {
+            const messageObj = {
+                from: userSettings.username,
+                message,
+                timestamp: new Date().toISOString()
+            };
+            dc.send(JSON.stringify(messageObj));
+            addMessageToTab(currentTab, messageObj);
+            saveChatHistory(currentTab, messageObj);
+        }
+    }
+
+    input.value = '';
+}
+function addMessageToTab(tabId, message) {
+    const chatContainer = document.getElementById(`chat-${tabId}`);
+    if (chatContainer) {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'mb-2';
+        messageElement.innerHTML = `
+      <span class="text-gray-400">[${new Date(message.timestamp).toLocaleTimeString()}]</span>
+      <strong>${message.from}:</strong> ${message.message}
+    `;
+        chatContainer.appendChild(messageElement);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+}
+
+// Settings Management
+function loadSettings() {
+    userSettings = JSON.parse(localStorage.getItem('userSettings')) || {
+        username: 'Anonymous',
+        avatar: '👤',
+        status: 'Available'
+    };
+
+    document.getElementById('username-input').value = userSettings.username;
+    document.getElementById('avatar-input').value = userSettings.avatar;
+    document.getElementById('status-input').value = userSettings.status;
+
+    // Notify server about user connection
+    socket.emit('user-connected', userSettings);
+}
+function saveSettings() {
+    userSettings = {
+        username: document.getElementById('username-input').value || 'Anonymous',
+        avatar: document.getElementById('avatar-input').value || '👤',
+        status: document.getElementById('status-input').value.slice(0, 32)
+    };
+
+    localStorage.setItem('userSettings', JSON.stringify(userSettings));
+    socket.emit('user-connected', userSettings);
+}
+
+// Event Listeners
+function setupEventListeners() {
+    document.getElementById('message-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    document.getElementById('settings-modal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) toggleSettings();
+    });
+
+    document.getElementById('settings-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveSettings();
+        toggleSettings();
+    });
+}
+
+// Tab Management
+function setupChatWindow() {
+    document.getElementById('chat-container').innerHTML = '';
+    createTab('lobby', 'Lobby', true);
+    loadChatHistory('lobby');
+}
+function createTab(id, label, isActive = false) {
+    const tabsContainer = document.getElementById('tabs');
+
+    const tab = document.createElement('button');
+    tab.className = `px-4 py-2 rounded-t-lg ${isActive ? 'bg-gray-800' : 'bg-gray-700 hover:bg-gray-600'}`;
+    tab.textContent = label;
+    tab.dataset.tab = id;
+    tab.onclick = () => switchTab(id);
+
+    // Right-click to close tab
+    tab.oncontextmenu = (e) => {
+        e.preventDefault();
+        if (id !== 'lobby') {
+            tab.remove();
+            document.getElementById(`chat-${id}`).remove();
+            if (currentTab === id) switchTab('lobby');
+        }
+    };
+
+    tabsContainer.appendChild(tab);
+
+    const chatDiv = document.createElement('div');
+    chatDiv.id = `chat-${id}`;
+    chatDiv.className = 'overflow-y-auto h-full';
+    document.getElementById('chat-container').appendChild(chatDiv);
+
+    if (isActive) currentTab = id;
+}
+function switchTab(tabId) {
+    currentTab = tabId;
+    document.querySelectorAll('#chat-container > div').forEach(div => {
+        div.style.display = div.id === `chat-${tabId}` ? 'block' : 'none';
+    });
+    document.querySelectorAll('#tabs button').forEach(btn => {
+        btn.className = btn.dataset.tab === tabId ?
+            'px-4 py-2 rounded-t-lg bg-gray-800' :
+            'px-4 py-2 rounded-t-lg bg-gray-700 hover:bg-gray-600';
+    });
+}
+
+// User List Management
+function updateOnlineUsers(users) {
+    const container = document.getElementById('online-users');
+    container.innerHTML = users
+        .map(user => `
+      <div class="flex items-center p-2 hover:bg-gray-700 rounded cursor-pointer" 
+           onclick="startPM('${user.id}')">
+        <span class="text-2xl mr-2">${user.avatar}</span>
+        <div>
+          <div>${user.username}</div>
+          <div class="text-gray-400 text-sm">${user.status}</div>
+        </div>
+      </div>
+    `).join('');
+}
+
+// Message Handlers
+function handleLobbyMessage(message) {
+    const chatContainer = document.getElementById('chat-lobby');
+    const messageElement = document.createElement('div');
+    messageElement.className = 'mb-2';
+    messageElement.innerHTML = `
+    <span class="text-gray-400">[${new Date(message.timestamp).toLocaleTimeString()}]</span>
+    <strong>${message.user}:</strong> ${message.message}
+  `;
+    chatContainer.appendChild(messageElement);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+function handleUserDisconnected(username) {
+    handleLobbyMessage({
+        user: 'System',
+        message: `${username} is now offline`,
+        timestamp: new Date().toISOString()
+    });
+}
+
+// WebRTC Handlers
+async function handleAnswer(from, answer) {
+    const pc = peerConnections[from];
+    if (pc) {
+        await pc.setRemoteDescription(answer);
+        createTab(from, `PM: ${from.slice(-4)}`);
+    }
+}
+async function handleCandidate(from, candidate) {
+    const pc = peerConnections[from];
+    if (pc) {
+        try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (e) {
+            console.error('Error adding ICE candidate:', e);
+        }
+    }
+}
+
+// Settings Modal
+function toggleSettings() {
+    const modal = document.getElementById('settings-modal');
+    modal.classList.toggle('hidden');
+}
+
+// Chat History
+function saveChatHistory(userId, message) {
+    const history = JSON.parse(localStorage.getItem(`chatHistory-${userId}`) || '[]');
+    history.push(message);
+    localStorage.setItem(`chatHistory-${userId}`, JSON.stringify(history));
+}
+function loadChatHistory(userId) {
+    let getHist = localStorage.getItem(`chatHistory-${userId}`);
+    if(!getHist) return;
+    const history = JSON.parse(getHist);
+    history.forEach(message => addMessageToTab(userId, message));
+}
+
+initialize();
