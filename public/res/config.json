@@ -1,0 +1,8 @@
+{
+  "projectName": "IzzyChat",
+  "version": "0.2",
+  "connectMsg": "Connected!",
+  "userConnectMsg": " is now online",
+  "userDisconnectMsg": " disconnected",
+  "iceAPI_URL": "https://izzychat.metered.live/api/v1/turn/credentials?apiKey=00de2c5d67d0f9403ac3eb51b8b5cdc91f57"
+}

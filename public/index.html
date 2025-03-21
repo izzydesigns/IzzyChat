@@ -2,51 +2,51 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" href="/res/favicon.ico">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @keyframes fade {0%, 100% { opacity: 0.2; }50% { opacity: 1; }}
-        .dot{
-            position:absolute;
-            width:16px; height:16px;
-            background:#fff;
-            border-radius:50%;
-            transform:translate(-50%, -50%);
-            animation:fade 1s linear infinite;
-        }
-    </style>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-gray-900 text-white h-screen">
+<body class="bg-gray-900 text-white h-screen overflow-hidden">
 
 <div id="offline-overlay" class="w-full h-full fixed z-10 flex flex-col items-center justify-center bg-gray-800 bg-opacity-75">
-    <div class="spinner mb-4 flex items-center justify-center relative" style="width:80px; height:80px;">
-        <div class="spinner mb-4 relative" style="width:80px; height:80px;">
-            <div class="dot" style="top:0; left:50%;animation:fade 1s linear infinite;"></div>
-            <div class="dot" style="top:15%; left:85%; animation:fade 1s linear infinite; animation-delay:0.125s;"></div>
-            <div class="dot" style="top:50%; left:100%; animation:fade 1s linear infinite; animation-delay:0.25s;"></div>
-            <div class="dot" style="top:85%; left:85%; animation:fade 1s linear infinite; animation-delay:0.375s;"></div>
-            <div class="dot" style="top:100%; left:50%; animation:fade 1s linear infinite; animation-delay:0.5s;"></div>
-            <div class="dot" style="top:85%; left:15%; animation:fade 1s linear infinite; animation-delay:0.625s;"></div>
-            <div class="dot" style="top:50%; left:0; animation:fade 1s linear infinite; animation-delay:0.75s;"></div>
-            <div class="dot" style="top:15%; left:15%; animation:fade 1s linear infinite; animation-delay:0.875s;"></div>
+    <div class="spinner flex items-center justify-center">
+        <div class="spinner">
+            <div class="dot dot1"></div><div class="dot dot3"></div><div class="dot dot5"></div><div class="dot dot7"></div>
+            <div class="dot dot2"></div><div class="dot dot4"></div><div class="dot dot6"></div><div class="dot dot8"></div>
         </div>
     </div>
     <span class="disconnected-text text-white text-3xl">Connecting...</span>
 </div>
 
-<div class="container mx-auto p-4 h-full flex flex-col">
-    <div class="flex justify-between">
-        <div class="tabs" id="tabs"></div>
-        <button onclick="toggleSettings()" class="bg-gray-700 px-4 py-2 rounded-lg">⚙️</button>
+
+<div class="bottom-area mx-auto p-4 h-full flex flex-col flex-1 justify-center">
+    <div class="top-bar-area mx-auto mb-8 flex flex-col justify-center">
+        <h2 class="title bg-rainbow neon text-center text-4xl font-bold relative"></h2>
     </div>
-    <div class="flex-1 flex max-h-[calc(100%-3rem)]">
-        <div class="w-1/4 bg-gray-800 p-4 rounded-lg mr-4">
-            <h2 class="text-xl mb-4">Online Users</h2>
-            <div id="online-users" class="space-y-2"></div>
+    <div class="flex flex-1 h-full">
+        <div class="onlineusers-area w-1/4 bg-gray-800 rounded-lg mr-4 flex flex-col">
+            <h2 class="text-xl pb-4 border-b border-gray-700 p-4">Online Users</h2>
+            <div id="online-users" class="space-y-2 mb-4"></div>
+            <div class="user-profile-area flex flex-col mt-auto">
+                <div id="current-user" class="flex items-center p-2 bg-gray-700 p-4 rounded-lg cursor-pointer hover:bg-gray-600"
+                     onclick="toggleSettings()">
+                    <span class="text-2xl mr-2" id="current-user-avatar">👤</span>
+                    <div class="flex flex-col">
+                        <div id="current-user-name">Anonymous</div>
+                        <div id="current-user-status" class="text-gray-400 text-sm">Available</div>
+                        <span class="text-green-500 text-sm block">Online</span>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="flex-1 bg-gray-800 rounded-lg p-4">
-            <div id="chat-container" class="h-[calc(100%-3rem)]"></div>
-            <div class="mt-4 flex">
+        <div class="chatbox-area flex-1 rounded-lg pl-4 pt-0 max-h-full flex flex-col">
+            <div class="flex justify-between">
+                <div class="tabs" id="tabs"></div>
+                <button onclick="toggleSettings()" class="bg-gray-700 px-4 py-2 rounded-lg">⚙️</button>
+            </div>
+            <div id="chat-container" class="chatwindow bg-gray-800 p-4 rounded-tr-lg pb-0 flex-1 min-h-0 overflow-auto"></div>
+            <div class="input-area bg-gray-800 p-4 flex rounded-b-lg">
                 <input id="message-input" class="flex-1 bg-gray-700 rounded-lg px-4 py-2 mr-2" placeholder="Type a message...">
                 <button onclick="sendMessage()" class="bg-blue-600 px-4 py-2 rounded-lg">Send</button>
             </div>
@@ -55,10 +55,10 @@
 </div>
 
 <!-- Settings Modal -->
-<div id="settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-50">
-    <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-auto mt-20">
-        <h3 class="text-xl mb-4">User Settings</h3>
-        <form id="settings-form" class="space-y-4">
+<div id="settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+        <h3 class="text-2xl mb-4 text-center">User Settings</h3>
+        <form id="settings-form" class="settings-area space-y-4">
             <div>
                 <label class="block mb-2">Username</label>
                 <input id="username-input" class="w-full bg-gray-700 rounded p-2">
@@ -71,7 +71,8 @@
                 <label class="block mb-2">Status Message (max 32 chars)</label>
                 <input id="status-input" maxlength="32" class="w-full bg-gray-700 rounded p-2">
             </div>
-            <div class="flex justify-end space-x-2">
+            <div class="flex items-center space-x-2 pt-4">
+                <div class="flex-1"><button type="button" onclick="clearChatHistory()" class="bg-red-600 px-4 py-2 rounded-lg">Clear Chat History</button></div>
                 <button type="button" onclick="toggleSettings()" class="bg-gray-600 px-4 py-2 rounded-lg">Cancel</button>
                 <button type="submit" class="bg-blue-600 px-4 py-2 rounded-lg">Save</button>
             </div>

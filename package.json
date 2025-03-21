@@ -1,6 +1,5 @@
 {
   "name": "chatclient",
-  "version": "0.1",
   "description": "A simple peer-to-peer encrypted chat application",
   "main": "app.js",
   "type": "module",
@@ -10,6 +9,7 @@
   "dependencies": {
     "electron": "^35.0.2",
     "express": "^4.21.2",
+    "scss": "^0.2.4",
     "socket.io": "^4.8.1",
     "uuid": "^11.1.0"
   }

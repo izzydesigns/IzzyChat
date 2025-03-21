@@ -1,0 +1,83 @@
+/* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+
+#current-user:hover {
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+#current-user span:first-child {
+  filter: drop-shadow(0 0 4px rgba(255,255,255,0.2));
+}
+
+/* Offline overlay & loading spinner */
+@keyframes fade {0%, 100% { opacity: 0.5; }50% { opacity: 1; }}
+.spinner{width:80px; height:80px; margin-bottom:1rem; position:relative;}
+.dot{ position:absolute; width:16px; height:16px; background:#fff; border-radius:50%; transform:translate(-50%, -50%); animation:fade 1s linear infinite; }
+.dot1{top:0; left:50%;animation:fade 1s linear infinite;}.dot3{top:50%; left:100%; animation:fade 1s linear infinite; animation-delay:0.25s;}
+.dot5{top:100%; left:50%; animation:fade 1s linear infinite; animation-delay:0.5s;}.dot7{top:50%; left:0; animation:fade 1s linear infinite; animation-delay:0.75s;}
+.dot2{top:15%; left:85%; animation:fade 1s linear infinite; animation-delay:0.125s;}.dot4{top:85%; left:85%; animation:fade 1s linear infinite; animation-delay:0.375s;}
+.dot6{top:85%; left:15%; animation:fade 1s linear infinite; animation-delay:0.625s;}.dot8{top:15%; left:15%; animation:fade 1s linear infinite; animation-delay:0.875s;}
+
+/* Scrollbar */
+::-webkit-scrollbar {width: 6px;}
+::-webkit-scrollbar-track {background: transparent;}
+::-webkit-scrollbar-thumb {background: rgba(255, 255, 255, 0.5);border-radius: 10px;}
+::-webkit-scrollbar-thumb:hover {background: rgba(255, 255, 255, 0.7);}
+/* Firefox */* {scrollbar-width: thin;scrollbar-color: rgba(255, 255, 255, 0.5) transparent;}
+
+/* Title styling */
+.neon{
+  font-family: 'Pacifico', sans-serif;
+  color: white;
+  animation: fade 3s ease-in-out infinite;
+  text-shadow: .1rem 0 .25rem #28D7FE,
+  .2rem 0 .25rem #28D7FE,
+  .4rem 0 .25rem #28D7FE,
+  .1rem 0 .1rem #1041FF,
+  .2rem 0 0 #1041FF,
+  .4rem 0 0 #1041FF,
+  .1rem 0 .1rem #1041FF,
+  .2rem 0 .1rem #1041FF,
+  .4rem 0 0 #1041FF,
+  .1rem 0 .8rem #1041FF,
+  .2rem 0 .8rem #1041FF,
+  .4rem 0 .8rem #1041FF,
+  .2rem 0 .5rem #1041FF,
+  .1rem 0 .5rem #1041FF,
+  .2rem 0 .5rem #1041FF,
+  .4rem 0 .5rem #1041FF,
+  .1rem 0 2rem #1041FF,
+  .2rem 0 2rem #1041FF,
+  .4rem 0 2rem #1041FF;
+}
+
+$color-red: #fd1d1d;$color-orange: #fcb045;
+$color-yellow: #fcef45;$color-green: #81fc45;
+$color-blue: #45d8fc;$color-indigo: #5245fc;
+$color-violet: #af45fc;$color-white: #ffffff;
+@mixin crossBrowserPrefix($property, $css) {
+  -webkit-#{$property}: #{$css};
+  -moz-#{$property}: #{$css};
+  -ms-#{$property}: #{$css};
+  -o-#{$property}: #{$css};
+  #{$property}: #{$css};
+}
+@keyframes magic {
+  from { background-position: -100% -100%; }
+  to { background-position: 200% 200%; }
+}
+.rainbow-text {
+  font-family: 'Pacifico', sans-serif;
+  color: transparent;
+  background-image: linear-gradient(
+    to right,
+    $color-red, $color-orange,
+    $color-yellow, $color-green,
+    $color-blue, $color-indigo,
+    $color-violet, $color-red,
+  );
+  background-size: 200% 200%;
+  background-repeat: repeat;
+  @include crossBrowserPrefix(animation, magic 3s infinite ease-in-out alternate);
+  @include crossBrowserPrefix(background-clip, text);
+}

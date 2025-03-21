@@ -14,6 +14,7 @@ let mainWindow;
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1400, height: 900,
+        icon: path.join(__dirname, 'public/res/favicon.ico'), // Use 'icon.ico' for Windows
         autoHideMenuBar: true, // Hide "Files, Edit, View etc..." bar
         //frame: false,  // Hides the default window controls
         //titleBarStyle: 'hidden',
@@ -26,8 +27,6 @@ function createWindow() {
             //nodeIntegration: false, // Prevent direct access to Node.js APIs from renderer
         }
     });
-
-    mainWindow.title = "IzzyChat (v0.1)";
 
     // Load the HTML file
     mainWindow.loadFile(__dirname+'/public/index.html').then(r => {
