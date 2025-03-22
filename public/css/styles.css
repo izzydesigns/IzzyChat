@@ -1,12 +1,24 @@
 /* Import fonts */
-@import url("https://fonts.googleapis.com/css2?family=Pacifico&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Playwrite+DK+Loopet:wght@100..400&family=Winky+Sans:ital,wght@0,300..900;1,300..900&display=swap");
+html, body {
+  font-family: "Winky Sans", sans-serif;
+}
+
+.font1 {
+  font-family: "Playwrite DK Loopet", sans-serif;
+}
+
+.font2 {
+  font-family: "Winky Sans", sans-serif;
+}
+
 #current-user:hover {
   transform: scale(1.02);
   transition: transform 0.2s ease;
 }
 
-#current-user span:first-child {
-  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
+#current-user-avatar, #online-users .avatar {
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
 }
 
 /* Offline overlay & loading spinner */
@@ -116,10 +128,9 @@
 
 /* Title styling */
 .neon {
-  font-family: "Pacifico", sans-serif;
   color: white;
   animation: fade 3s ease-in-out infinite;
-  text-shadow: 0.1rem 0 0.25rem #28D7FE, 0.2rem 0 0.25rem #28D7FE, 0.4rem 0 0.25rem #28D7FE, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0 #1041FF, 0.4rem 0 0 #1041FF, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0.1rem #1041FF, 0.4rem 0 0 #1041FF, 0.1rem 0 0.8rem #1041FF, 0.2rem 0 0.8rem #1041FF, 0.4rem 0 0.8rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.1rem 0 0.5rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.4rem 0 0.5rem #1041FF, 0.1rem 0 2rem #1041FF, 0.2rem 0 2rem #1041FF, 0.4rem 0 2rem #1041FF;
+  text-shadow: 0.1rem 0 0.2rem #28D7FE, 0.2rem 0 0.2rem #28D7FE, 0.4rem 0 0.2rem #28D7FE, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0rem #1041FF, 0.4rem 0 0rem #1041FF, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0.1rem #1041FF, 0.4rem 0 0rem #1041FF, 0.1rem 0 0.8rem #1041FF, 0.2rem 0 0.8rem #1041FF, 0.4rem 0 0.8rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.1rem 0 0.5rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.4rem 0 0.5rem #1041FF, 0.1rem 0 2rem #1041FF, 0.2rem 0 2rem #1041FF, 0.4rem 0 2rem #1041FF;
 }
 
 @keyframes magic {

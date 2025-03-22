@@ -4,5 +4,39 @@
   "connectMsg": "Connected!",
   "userConnectMsg": " is now online",
   "userDisconnectMsg": " disconnected",
-  "iceAPI_URL": "https://izzychat.metered.live/api/v1/turn/credentials?apiKey=00de2c5d67d0f9403ac3eb51b8b5cdc91f57"
+  "defaultSettings": {
+    "usernames": [
+      "PookieBear", "SnookieWookums", "SmoogleSnuff", "DandyScuddle",
+      "DimpyPuffins", "DumptyMuffins", "SullyWookins", "PollyWobbles",
+      "PansyPookins", "RumblyBear", "WigglyWumpkin", "SmookumSnout",
+      "ArdyBorkins", "DorusMumps", "DankusDarums", "SallySnookums",
+      "BunkyPurins"
+    ],
+    "avatars": [
+      "😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","😋","😎","😍","😘","🥰","😶‍🌫️",
+      "😗","😙","🥲","😚","🙂","🤗","🤩","🤔","🫡","🤨","😐","😑","😶","🙄","😏","😣",
+      "😥","😮","🤐","😯","😪","😫","🥱","😴","😌","😛","😜","😝","🤤","😒","😓","😔",
+      "🫤","😕","🙃","🫠","😞","😖","🙁","😲","🤑","😟","😤","😢","😭","😦","😧","😰",
+      "😬","🤯","😩","😨","😱","🥵","🥶","😳","🤪","😵","😷","🤬","😡","😠","🥴","😵",
+      "🤒","🤕","🤢","🤮","🤧","😇","🥳","🥸","🥺","🥹","🤠","🤡","🤥","🫨","🙂","🤫",
+      "🤭","🫢","🫣","🧐","🤓","😈","👿","👹","👺","💀","👻","👽","👾","🤖","😺","😸",
+      "😹","😻","😼","😽","🙀","😿","😾"
+
+    ],
+    "statuses": [
+      "Vibes all day long", "When in doubt, vibe it out",
+      "No thoughts only vibes", "Screw it we're vibing",
+      "You either vibe or you get vibed", "🎵Never gonna give you up🎵",
+      "🎵Never gonna let you down🎵", "🎵Never gonna run around and desert you🎵",
+      "🎵Never gonna make you cry🎵", "🎵Never gonna say goodbye🎵",
+      "🎵Never gonna tell a lie and hurt you🎵", "🎵Around the worlddddd🎵",
+      "I got a feelin'", "Sorry for party rockin' 😎",
+      "BANGARANG!!! 💣🎵", "'I'm a bee' - Will I. Am",
+      "SOMEBODY THAT I USED TO KNOW!!!", "H3y Guy5 Wh475 Up? 🤓",
+      "Say hello to my little friend!", "Certified goofy moment™",
+      "Insert witty quote here", "Gotta blast! 🚀",
+      "I am the danger. I am the one who knocks!", "This is SPARTA!",
+      "Why so serious?"
+    ]
+  }
 }

@@ -19,33 +19,33 @@
     <span class="disconnected-text text-white text-3xl">Connecting...</span>
 </div>
 
-
-<div class="bottom-area mx-auto p-4 h-full flex flex-col flex-1 justify-center">
-    <div class="top-bar-area mx-auto mb-8 flex flex-col justify-center">
-        <h2 class="title bg-rainbow neon text-center text-4xl font-bold relative"></h2>
-    </div>
-    <div class="flex flex-1 h-full">
-        <div class="onlineusers-area w-1/4 bg-gray-800 rounded-lg mr-4 flex flex-col">
-            <h2 class="text-xl pb-4 border-b border-gray-700 p-4">Online Users</h2>
+<div class="chat-window-area mx-auto p-4 h-full flex flex-col flex-1 justify-center relative">
+    <div class="chat-wrapper flex flex-1 h-full">
+        <div class="onlineusers-area w-1/4 bg-gray-800 rounded-lg flex flex-col">
+            <h2 class="text-2xl pb-4 bg-gray-700 rounded-lg rounded-b-none p-4 mb-2 text-center select-none">
+                Online Users
+            </h2>
             <div id="online-users" class="space-y-2 mb-4"></div>
             <div class="user-profile-area flex flex-col mt-auto">
-                <div id="current-user" class="flex items-center p-2 bg-gray-700 p-4 rounded-lg cursor-pointer hover:bg-gray-600"
-                     onclick="toggleSettings()">
-                    <span class="text-2xl mr-2" id="current-user-avatar">👤</span>
-                    <div class="flex flex-col">
-                        <div id="current-user-name">Anonymous</div>
-                        <div id="current-user-status" class="text-gray-400 text-sm">Available</div>
-                        <span class="text-green-500 text-sm block">Online</span>
+                <div id="current-user" class="flex items-center select-none break-words py-4 px-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600"
+                     onclick="settingsElem.classList.toggle('hidden');">
+                    <span class="text-4xl mx-2" id="current-user-avatar">👤</span>
+                    <div class="flex flex-col w-0 flex-1 text-2xl">
+                        <div id="current-user-name" class="truncate"></div>
+                        <div id="current-user-status" class="text-gray-400 text-base truncate"></div>
+                        <span class="current-user-online text-red-500 text-base block">Offline</span>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="chatbox-area flex-1 rounded-lg pl-4 pt-0 max-h-full flex flex-col">
-            <div class="flex justify-between">
-                <div class="tabs" id="tabs"></div>
-                <button onclick="toggleSettings()" class="bg-gray-700 px-4 py-2 rounded-lg">⚙️</button>
+        <div class="chatbox-area rounded-lg pl-4 pt-0 w-3/4 max-h-full flex flex-col">
+            <div class="title-bar-area flex mb-4 cursor-pointer">
+                <h2 class="title neon font1 text-2xl font-bold w-full p-8 -mt-4 -mb-8 overflow-ellipsis whitespace-nowrap overflow-hidden text-center"></h2>
             </div>
-            <div id="chat-container" class="chatwindow bg-gray-800 p-4 rounded-tr-lg pb-0 flex-1 min-h-0 overflow-auto"></div>
+            <div class="flex justify-between">
+                <div class="tabs select-none" id="tabs"></div>
+            </div>
+            <div id="chat-container" class="chatwindow bg-gray-800 p-4 rounded-tr-lg pb-0 flex-1 overflow-auto"></div>
             <div class="input-area bg-gray-800 p-4 flex rounded-b-lg">
                 <input id="message-input" class="flex-1 bg-gray-700 rounded-lg px-4 py-2 mr-2" placeholder="Type a message...">
                 <button onclick="sendMessage()" class="bg-blue-600 px-4 py-2 rounded-lg">Send</button>
@@ -57,24 +57,32 @@
 <!-- Settings Modal -->
 <div id="settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
     <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
-        <h3 class="text-2xl mb-4 text-center">User Settings</h3>
-        <form id="settings-form" class="settings-area space-y-4">
+        <h3 class="border-b border-gray-700 pb-4 text-4xl mb-4 text-center">User Settings</h3>
+        <form id="settings-form" class="settings-area space-y-4 text-2xl">
             <div>
                 <label class="block mb-2">Username</label>
-                <input id="username-input" class="w-full bg-gray-700 rounded p-2">
-            </div>
-            <div>
-                <label class="block mb-2">Avatar (emoji)</label>
-                <input id="avatar-input" maxlength="2" class="w-full bg-gray-700 rounded p-2">
+                <input id="username-input" maxlength="32" class="w-full text-xl bg-gray-700 rounded p-2">
             </div>
             <div>
                 <label class="block mb-2">Status Message (max 32 chars)</label>
-                <input id="status-input" maxlength="32" class="w-full bg-gray-700 rounded p-2">
+                <input id="status-input" maxlength="32" class="w-full text-xl bg-gray-700 rounded p-2">
+            </div>
+            <div>
+                <label class="block mb-2">Avatar (emoji)</label>
+                <input id="avatar-input" maxlength="2" class="w-12 text-xl bg-gray-700 rounded p-2">
+            </div>
+            <div>
+                <label class="block mb-2">Generate Random User Info</label>
+                <button type="button" onclick="loadSettings(generateNewUser())" class="bg-gray-600 text-xl px-4 py-2 rounded-lg">Generate User Info</button>
             </div>
             <div class="flex items-center space-x-2 pt-4">
-                <div class="flex-1"><button type="button" onclick="clearChatHistory()" class="bg-red-600 px-4 py-2 rounded-lg">Clear Chat History</button></div>
-                <button type="button" onclick="toggleSettings()" class="bg-gray-600 px-4 py-2 rounded-lg">Cancel</button>
-                <button type="submit" class="bg-blue-600 px-4 py-2 rounded-lg">Save</button>
+                <div class="flex-1"><button type="button" onclick="clearChatHistory()" class="bg-red-600 px-4 py-2 rounded-lg text-xl">Clear Chat History</button></div>
+                <button type="button" class="bg-gray-600 px-4 py-2 rounded-lg text-xl" onclick="loadSettings();settingsElem.classList.toggle('hidden');">
+                    Cancel
+                </button>
+                <button type="submit" class="bg-blue-600 px-4 py-2 rounded-lg text-xl" onclick="saveSettings();settingsElem.classList.toggle('hidden');">
+                    Save
+                </button>
             </div>
         </form>
     </div>
