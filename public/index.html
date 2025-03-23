@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <link rel="icon" href="/res/favicon.ico">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="bg-gray-900 text-white h-screen overflow-hidden">
 
-<div id="offline-overlay" class="w-full h-full fixed z-10 flex flex-col items-center justify-center bg-gray-800 bg-opacity-75">
+<!-- Offline Overlay -->
+<div id="offline-overlay" class="w-full h-full fixed z-10 flex flex-col items-center justify-center bg-gray-800/50">
     <div class="spinner flex items-center justify-center">
         <div class="spinner">
             <div class="dot dot1"></div><div class="dot dot3"></div><div class="dot dot5"></div><div class="dot dot7"></div>
@@ -19,6 +20,7 @@
     <span class="disconnected-text text-white text-3xl">Connecting...</span>
 </div>
 
+<!-- Chat Window Area -->
 <div class="chat-window-area mx-auto p-4 h-full flex flex-col flex-1 justify-center relative">
     <div class="chat-wrapper flex flex-1 h-full">
         <div class="onlineusers-area w-1/4 bg-gray-800 rounded-lg flex flex-col">
@@ -29,10 +31,10 @@
             <div class="user-profile-area flex flex-col mt-auto">
                 <div id="current-user" class="flex items-center select-none break-words py-4 px-2 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600"
                      onclick="settingsElem.classList.toggle('hidden');">
-                    <span class="text-4xl mx-2" id="current-user-avatar">👤</span>
+                    <span class="text-4xl mr-2" id="current-user-avatar">👤</span>
                     <div class="flex flex-col w-0 flex-1 text-2xl">
-                        <div id="current-user-name" class="truncate"></div>
-                        <div id="current-user-status" class="text-gray-400 text-base truncate"></div>
+                        <div id="current-user-name" class="truncate">...</div>
+                        <div id="current-user-status" class="text-gray-400 text-base truncate">...</div>
                         <span class="current-user-online text-red-500 text-base block">Offline</span>
                     </div>
                 </div>
@@ -40,7 +42,7 @@
         </div>
         <div class="chatbox-area rounded-lg pl-4 pt-0 w-3/4 max-h-full flex flex-col">
             <div class="title-bar-area flex mb-4 cursor-pointer">
-                <h2 class="title neon font1 text-2xl font-bold w-full p-8 -mt-4 -mb-8 overflow-ellipsis whitespace-nowrap overflow-hidden text-center"></h2>
+                <h2 class="title neon font1 text-4xl font-bold w-full p-8 -mt-8 -mb-4 overflow-ellipsis whitespace-nowrap overflow-hidden text-center"></h2>
             </div>
             <div class="flex justify-between">
                 <div class="tabs select-none" id="tabs"></div>
@@ -55,7 +57,7 @@
 </div>
 
 <!-- Settings Modal -->
-<div id="settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+<div id="settings-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center">
     <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
         <h3 class="border-b border-gray-700 pb-4 text-4xl mb-4 text-center">User Settings</h3>
         <form id="settings-form" class="settings-area space-y-4 text-2xl">

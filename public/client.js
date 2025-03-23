@@ -1,7 +1,7 @@
-let socket, usersMap = new Map(), peerConnections = {}, dataChannels = {};
+let socket, usersMap = new Map(), peerConnections = {}, peerConnectionStates = {}, dataChannels = {};
 let offlineOverlay = document.getElementById('offline-overlay');
 let settingsElem = document.getElementById('settings-modal');
-let currentTab, windowTitle, config, getConfig, userSettings, clientId;
+let currentTab, windowTitle, config, userSettings, clientId;
 let RTCconfig = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" },], // Fallback public STUN server, updated by `setupICE()`
     iceTransportPolicy: 'all', // Allow both UDP and TCP
@@ -9,34 +9,32 @@ let RTCconfig = {
 };
 let RETRIES = 0, FIRST_CONNECT = true;
 // Change these variables to whatever you'd like
-const MAX_RETRIES = 5, TIMEOUT = 5000, CONFIG_PATH = "res/config.json", COMMAND_TRIGGER = "/";
+const DEBUG = { networking: false, tabs: false, messages: false, localStorage: false };
+const MAX_RETRIES = 5, TIMEOUT = 5000, CONFIG_PATH = "config.json", COMMAND_TRIGGER = "/";
 
 async function initialize() {
     await loadConfig(CONFIG_PATH);
 
     // Initialize socket.io server
     const serverUrl = (window.location.hostname === 'localhost' || window.location.hostname === '') ? 'http://localhost:8080' : window.location.origin;
+    const curUserElem = document.querySelector(".current-user-online");
+    const disconnectedTextElem = document.querySelector(".disconnected-text");
     socket = io(serverUrl, {transports: ['websocket'],reconnectionAttempts: MAX_RETRIES,timeout: TIMEOUT});
-    socket.on('connect', () => {
-        RETRIES = 0;
-        if(FIRST_CONNECT){ // Successfully connected for the first time
-            setupSocketListeners(); setupEventListeners();
-            createTab('lobby', 'Lobby'); loadTabState(); loadSettings();
+    socket.on('connect', () => { RETRIES = 0;
+        if(FIRST_CONNECT){ FIRST_CONNECT = false; // Successfully connected for the first time
+            setupSocketListeners(); setupEventListeners(); loadSettings(); loadTabState();
             // Update original "Connecting..." text to "Disconnected." once a connection has been made
-            document.querySelector(".disconnected-text").textContent = "Disconnected. Attempting to reconnect...";
-            const onlineStatusElem = document.querySelector(".current-user-online");
-            onlineStatusElem.textContent = "Online";
-            onlineStatusElem.classList.remove('text-red-500');
-            onlineStatusElem.classList.add('text-green-500');
-            FIRST_CONNECT = false;
+            disconnectedTextElem.textContent = "Disconnected. Attempting to reconnect...";
+            curUserElem.textContent = "Online";
+            curUserElem.classList.remove('text-red-500'); curUserElem.classList.add('text-green-500');
         }
         // Notify server about user connection
-        socket.emit('user-connected', { ...userSettings, clientId: clientId });
-        console.log('Connected to server');
+        socket.emit('user-connected', { ...userSettings, clientId: clientId.length>0?clientId:undefined });
+        if(DEBUG.networking) console.log('[Socket] Connected to server successfully!');
         offlineOverlay.classList.add("hidden"); // Hide disconnected overlay
     });
     socket.on('connect_error', (err) => {
-        console.log('Connection error',err);
+        if(DEBUG.networking) console.log('[Socket] Connection error: ',err);
         offlineOverlay.classList.remove("hidden");
         curUserElem.textContent = "Offline";
         curUserElem.classList.remove('text-green-500');
@@ -44,13 +42,15 @@ async function initialize() {
     });
 }
 async function loadConfig(path){
-    getConfig = await fetch(path);
+    const getConfig = await fetch(path);
     config = await getConfig.json(); // Load config.json data into config variable
     document.querySelector('.title-bar-area > .title').innerHTML = config.projectName;
     windowTitle = config.projectName+" - ";//+" v"+config.version;
     // Get userSettings from localStorage, otherwise generate new data
-    userSettings = JSON.parse(localStorage.getItem('userSettings')) || generateNewUser();
-    clientId = localStorage.getItem('clientId') || undefined;
+    userSettings = getLocalStorage('userSettings', []);
+    // No userSettings found in localStorage? Generate new settings & save them to localStorage
+    if(userSettings.length <= 0) userSettings = generateNewUser(); setLocalStorage('userSettings', userSettings);
+    clientId = getLocalStorage('clientId', []);
 }
 
 // Event Listeners
@@ -68,7 +68,7 @@ function setupEventListeners() {
 function setupSocketListeners() {
     socket.on('users-updated', updateOnlineUsers);
     socket.on('lobby-message', handleLobbyMessage);
-    socket.on('lobby-history', (history) => {history.forEach(msg => addMessageToTab('lobby', msg))});
+    socket.on('lobby-history', handleLobbyHistory);
     socket.on('user-disconnected', handleUserDisconnected);
     socket.on('user-connected', handleUserConnected);
     socket.on('signal', handleSignal);
@@ -78,121 +78,116 @@ function setupSocketListeners() {
 }
 function setupDataChannel(clientId, dc) {
     dataChannels[clientId] = dc;
-    //console.log(`Setting up data channel with ${clientId}`);
-    dc.onopen = () => { loadChatHistory(clientId); };
-    dc.onclose = () => { delete dataChannels[clientId]; };
+    if(DEBUG.networking) console.log(`[WebRTC] Setting up data channel with ${clientId}`);
+    dc.onopen = () => {
+        if(DEBUG.networking) console.log(`[WebRTC] Data channel opened with ${clientId}`);
+        loadChatHistory(clientId);
+    };
+    dc.onclose = () => {
+        if(DEBUG.networking) console.log(`[WebRTC] Data channel closed with ${clientId}`);
+        delete dataChannels[clientId];
+    };
     dc.onmessage = (event) => {
-        //const data = JSON.parse(event.data);
-        // Handle misc dataChannel message events OTHER than just messages
-        //if (data.type === 'system' && data.action === 'close-tab') { /*Other user closed the tab*/ } else {
+        // TODO: Handle other data.type and data.actions, not just messages (like incoming voice chats or PM requests?)
+        if(DEBUG.networking) console.log(`[WebRTC] Re-established! (with: ${currentTab})`);
         addMessageToTab(clientId, JSON.parse(event.data));
-        //}
     };
 }
+function assignClientId(data) { clientId = data; setLocalStorage('clientId', data); }
 
 // Settings Management
 function generateNewUser() {
-    return {
-        username: config.defaultSettings.usernames[Math.floor(Math.random() * config.defaultSettings.usernames.length)],
-        avatar: config.defaultSettings.avatars[Math.floor(Math.random() * config.defaultSettings.avatars.length)],
-        status: config.defaultSettings.statuses[Math.floor(Math.random() * config.defaultSettings.statuses.length)]
+    const defaults = config.defaultSettings; if(!defaults) return;
+    const randNames = defaults.usernames, randAvatars = defaults.avatars, randStatuses = defaults.statuses;
+    return { // Retrieves random username, avatar, and status from config.json defaultSettings values
+        username: randNames[Math.floor(Math.random() * randNames.length)],
+        avatar: randAvatars[Math.floor(Math.random() * randAvatars.length)],
+        status: randStatuses[Math.floor(Math.random() * randStatuses.length)]
     };
 }
 function loadSettings(settings = userSettings) {
     // If no userSettings value retrieved from localStorage,
-    if(!settings) { userSettings = generateNewUser(); return; }
+    if(!settings) { userSettings = generateNewUser(); setLocalStorage('userSettings',userSettings); return; }
     document.getElementById('username-input').value = settings.username;
     document.getElementById('avatar-input').value = settings.avatar;
     document.getElementById('status-input').value = settings.status;
 }
-function saveSettings(settings = userSettings) {
-    if(!settings){ console.error("Error saving settings value: ",settings); return; }
-    let getUser = document.getElementById('username-input').value;
-    let getAvatar = document.getElementById('avatar-input').value;
-    let getStatus = document.getElementById('status-input').value;
-    if(getUser !== settings.username || getAvatar !== settings.avatar || getStatus !== settings.status){
-        // Save any changes made to input values and update userSettings
-        userSettings = { username: getUser, avatar: getAvatar, status: getStatus };
-    }else{ return; } // Otherwise ignore the rest
-    localStorage.setItem('userSettings', JSON.stringify(userSettings)); // Save userSettings value
-    localStorage.setItem('clientId', clientId); // Save clientId value
-    socket.emit('user-update', userSettings); // Send user-update with new userSettings to update other clients
-    updateCurrentUserDisplay(); // Update the user profile with new values
+function saveSettings() {
+    const oldUsername = userSettings.username;
+    const newSettings = {
+        username: document.getElementById('username-input').value,
+        avatar: document.getElementById('avatar-input').value,
+        status: document.getElementById('status-input').value
+    };
+    if (JSON.stringify(newSettings) !== JSON.stringify(userSettings)) {
+        userSettings = newSettings;
+        socket.emit('user-update', userSettings);
+        setLocalStorage('userSettings', userSettings);
+        updateCurrentUserDisplay();
+        if (oldUsername !== userSettings.username) { // Handle username updates
+            updateChatHistoryUsernames(oldUsername, userSettings.username);
+            // Reload all chat histories for every tab to update usernames
+            document.querySelectorAll('[data-tab]').forEach(tab => loadChatHistory(tab.dataset.tab));
+        }
+    }
 }
 function toggleSettings() {document.getElementById('settings-modal').classList.toggle('hidden');}
-function assignClientId(data){
-    if(clientId) { return; } // clientId already assigned
-    clientId = data; localStorage.setItem('clientId', data);
-}
 
 // Tab Management
 function createTab(id, label, isActive = false) {
     // Check if tab already exists
     const existingTab = document.querySelector(`[data-tab="${id}"]`);
     if (existingTab) {
-        if(isActive) switchTab(id);
-        // Check if user is online and attempt connection
-        console.log("createtab already exists, switching",dataChannels, id);
+        if (isActive && currentTab !== id) switchTab(id);
+        if(DEBUG.tabs) console.log(`[Tab] Tab ${id} already exists`);
         return;
     }
-
-
+    if(DEBUG.tabs) console.log(`[Tab] Creating new tab named '${id}'`);
     const tab = document.createElement('button');
     const tabsContainer = document.getElementById('tabs');
     // If isActive is true, find other buttons with 'bg-gray-800' and replace with 'bg-gray-700' and 'hover:bg-gray-600'
     if (isActive) {
         tabsContainer.querySelectorAll('button.bg-gray-800').forEach(btn => {
-            btn.classList.remove('bg-gray-800');
-            btn.classList.add('bg-gray-700', 'hover:bg-gray-600');
+            btn.classList.remove('bg-gray-800'); btn.classList.add('bg-gray-700', 'hover:bg-gray-600');
         });
     }
     tab.className = `px-8 py-2 text-2xl rounded-t-lg ${isActive ? 'bg-gray-800' : 'bg-gray-700 hover:bg-gray-600'}`;
-    tab.textContent = label;
-    tab.dataset.tab = id;
-
-    // Create onclick handler for each tab & switch to it on click
-    tab.onclick = () => { if(id !== 'lobby') { startPM(id);console.log("STARTINGPM"); }else{ switchTab(id); } }
-
+    tab.textContent = label; tab.dataset.tab = id;
+    // Create onclick handler for each tab & switch tabs
+    tab.onclick = () => switchTab(id);
     // Create right click handler & close the tab upon click
     tab.oncontextmenu = (e) => {
         e.preventDefault();
         if (id !== 'lobby') {
-            console.log("DELETING TAB");
-            tab.remove(); // Delete tab element
-            //dataChannels[id].close();
-            //delete dataChannels[id]; // Cleanup data channel
-            console.log(dataChannels, id);
-            if (currentTab === id) switchTab('lobby'); // Switch back to Lobby when deleting a tab
-            saveTabState(); // Save tabs & update window title
+            if(DEBUG.tabs) console.log(`[Tab] Closing PM tab with ${id}`);
+            //cleanupConnection(id);
+            tab.remove();
+            if (currentTab === id) switchTab('lobby');
         }
     };
-
     tabsContainer.appendChild(tab);
     if (isActive) currentTab = id; // Set currentTab if new tab isActive
-    if(id !== 'lobby')saveTabState();
-
     // Create chat div for messages
     if(!document.getElementById(`chat-${id}`)) {
         const chatDiv = document.createElement('div');
-        chatDiv.id = `chat-${id}`;
-        chatDiv.className = 'overflow-y-auto h-full';
+        chatDiv.id = `chat-${id}`; chatDiv.className = 'overflow-y-auto h-full';
         document.getElementById('chat-container').appendChild(chatDiv);
     }
     // Display the chat-container div for currentTab
     document.querySelectorAll('#chat-container > div').forEach(div => {
         div.style.display = (div.id === `chat-${currentTab}`)?'block':'none';
     });
-
-    // Check if user is online and attempt connection
-    console.log(dataChannels, id);
+    saveTabState(); // Save new tab state (we save tab state when we call switchTab
+    if(id === 'lobby') return; // Return if creating lobby tab, otherwise establish data channels
     const user = usersMap.get(id);
-    if (user?.connected) establishDataChannel(id).then(() => console.log("Data channel created with "+id));
-
+    // Check if user is online and if so, attempt connection
+    if (user?.connected) establishDataChannel(id).then();
 }
 function switchTab(tabId) {
-    console.log("switch tab request (switch to",tabId,")");
-    let tabName="Lobby";
-    currentTab = tabId;
+    if(DEBUG.tabs) console.log("[Tab] Switching tabs to",tabId);
+    if (tabId === currentTab) { if(DEBUG.tabs) { console.log("[Tab] Already on tab", tabId); } return; }
+    let tabName="Lobby"; // Default to 'Lobby'
+    currentTab = tabId; saveTabState();
     // Assign classes depending on the 'data-tab' value (tabId matched? use different tailwind classes)
     document.querySelectorAll('#tabs button').forEach(btn => {
         btn.className = 'px-8 py-2 text-2xl rounded-t-lg ' +
@@ -203,8 +198,6 @@ function switchTab(tabId) {
     document.querySelectorAll('#chat-container > div').forEach(div => {
         div.style.display = (div.id === `chat-${currentTab}`)?'block':'none';
     });
-    // Update 'chatTabs' + 'lastTab' localStorage values and window title
-    saveTabState();
     const curChat = document.getElementById('chat-'+currentTab); if(!curChat) return;
     requestAnimationFrame(() => curChat.scrollTop = curChat.scrollHeight); // Scroll to bottom of container automatically
 }
@@ -212,62 +205,69 @@ function addMessageToTab(tabId, message) {
     if (!document.getElementById(`chat-${tabId}`)) {
         createTab(tabId, `PM: ${message.user}`); // If no tab exists, create one
     }
-    const chatContainer = document.getElementById(`chat-${tabId}`);
-    if (chatContainer) {
-        addMessageTo(chatContainer, message);
-        // Handle PM message saving
-        if (tabId !== 'lobby' || message.user !== 'System') {
-            let msg = {...message, user: message.user};
-            saveChatHistory(tabId, msg);
-        }
-
-        if(currentTab !== tabId)chatContainer.hidden = true; // Hide other chat windows if they're not the current tab
-    }
+    const chatContainer = document.getElementById(`chat-${tabId}`); if(!chatContainer) return;
+    addMessageTo(chatContainer, message);
+    if(tabId !== 'lobby') saveChatHistory(tabId, message);
+    if(currentTab !== tabId) chatContainer.hidden = true; // Ensures chat window is hidden if its not the currentTab
 }
 function saveTabState() {
     const tabs = Array.from(document.querySelectorAll('#tabs button'))
         .map(btn => ({ id: btn.dataset.tab, label: btn.textContent }));
-    localStorage.setItem('chatTabs', JSON.stringify(tabs));
-    localStorage.setItem('lastTab', currentTab);
-    let tabName;
-    // Get tab.label of currentTab & update document.title
-    tabs.forEach(tab => {if(tab.id === currentTab){tabName=tab.label;}});
+    let tabName; tabs.forEach(tab => {if(tab.id === currentTab){tabName=tab.label;}});
+    setLocalStorage('chatTabs', tabs); setLocalStorage('lastTab', currentTab);
     document.title = windowTitle + ((currentTab === 'lobby') ? 'Lobby' : tabName);
 }
 function loadTabState() {
-    const savedTabs = JSON.parse(localStorage.getItem('chatTabs')) || [{id:'lobby',label:'Lobby'}];
-    const lastTab = localStorage.getItem('lastTab') || [];
-    currentTab = localStorage.getItem('lastTab') || 'lobby';
+    const savedTabs = getLocalStorage('chatTabs', [{id:'lobby',label:'Lobby'}]);
+    currentTab = getLocalStorage('lastTab', 'lobby');
     let curTabName;
-    // Create a tab for each savedTab value
-    savedTabs.forEach(tab => {
-        createTab(tab.id, tab.label, tab.id === lastTab);
+    savedTabs.forEach(tab => { // Create a tab for each savedTab value
+        createTab(tab.id, tab.label, tab.id === currentTab);
         if(tab.id === currentTab) curTabName = tab.label;
     });
-    // Load PM histories for existing tabs
     document.querySelectorAll('[data-tab]').forEach(tab => {
-        const tabId = tab.dataset.tab;
-        if (tabId !== 'lobby') loadChatHistory(tabId);
+        if (tab.dataset.tab !== 'lobby') loadChatHistory(tab.dataset.tab); // Load PM histories for existing tabs
     });
-    // Update document.title with loaded currentTab label
-    document.title = windowTitle + ((lastTab === 'lobby') ? 'Lobby' : curTabName);
+    document.title = windowTitle + ((currentTab === 'lobby') ? 'Lobby' : curTabName);
 }
 
 // User List Management
+function handleUsernameChange(clientId, oldUsername, newUsername) {
+    const pmTab = document.querySelector(`[data-tab="${clientId}"]`);
+    if (pmTab) { pmTab.textContent = `PM: ${newUsername}`; saveTabState(); }
+    updateChatHistoryUsernames(oldUsername, newUsername);
+    // Force reload all affected chat histories
+    document.querySelectorAll('[data-tab]').forEach(tab => {
+        const tabId = tab.dataset.tab; loadChatHistory(tabId);
+    });
+}
+function updateChatHistoryUsernames(oldName, newName) {
+    // Update all chat history data (both lobby and PM localStorage data)
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('chatHistory-')) {
+            const history = getLocalStorage(key, []);
+            setLocalStorage(key, history.map(msg => {
+                if (msg.user === oldName) { return {...msg, user: newName}; } return msg;
+            }));
+        }
+    });
+}
 function updateOnlineUsers(users = []) {
+    users.forEach(user => {
+        const oldUser = usersMap.get(user.clientId);
+        if (oldUser && oldUser.username !== user.username) {
+            handleUsernameChange(user.clientId, oldUser.username, user.username);
+            loadChatHistory(currentTab); // Update localStorage to new username & reload currentTab chat history
+        }
+    });
     usersMap = new Map(users?.map(user => [user.clientId, user]));
-    // Update current user display
     const currentUser = users.find(user => user.clientId === clientId);
     if(currentUser) updateCurrentUserDisplay();
-    // Rendering code for other users
     const container = document.getElementById('online-users'); if(!container) return;
     container.innerHTML = ''; // Since we use innerHTML += to add each user, we reset it each new call
-    // Sort the users array to move the current user to the top
-    users.sort((userA, userB) => {
-        // If userA is the current user, place it at the top
-        if (userA.username === userSettings.username) return -1;
-        // If userB is the current user, move userA down
-        if (userB.username === userSettings.username) return 1;
+    users.sort((userA, userB) => { // Move current user to top of online users list
+        if (userA.username === userSettings.username) return -1; // If userA = current user, place at top
+        if (userB.username === userSettings.username) return 1; // If userB = current user, move userA down
         return 0;// Otherwise, maintain the current order
     });
     users.map((user) => {
@@ -289,24 +289,24 @@ function updateOnlineUsers(users = []) {
         // Set tooltip text
         container.querySelector(".user-"+usernameParsed).title =
             (isCurUser ? ('Edit profile\nUser ID: '+user.clientId) :
-                ('Click to start private chat\n\nStatus: '+sanitizeString(user.status)+
+                ('Click to start private chat\n\nStatus: '+user.status+
                 '\nUser ID: '+user.clientId+'')
             );
-        container.querySelector(".user-"+usernameParsed+" .username").textContent = sanitizeString(user.username);
-        container.querySelector(".user-"+usernameParsed+" .status").textContent = sanitizeString(user.status);
+        container.querySelector(".user-"+usernameParsed+" .username").textContent = user.username;
+        container.querySelector(".user-"+usernameParsed+" .status").textContent = user.status;
     }).join('');
 }
 function updateCurrentUserDisplay() {
     document.getElementById('current-user-avatar').textContent = userSettings.avatar;
     document.getElementById('current-user-name').textContent =
-        sanitizeString(userSettings.username?.slice(0, 32));
+        userSettings.username?.slice(0, 32);
     document.getElementById('current-user-status').textContent =
-        sanitizeString(userSettings.status?.slice(0, 32));
+        userSettings.status?.slice(0, 32);
     let userListItem = document.querySelector(`.user-profile[title*="${clientId}"]`);
     if(!userListItem) return;
-    userListItem.querySelector(".username").textContent = sanitizeString(userSettings.username?.slice(0, 32));
+    userListItem.querySelector(".username").textContent = userSettings.username?.slice(0, 32);
     userListItem.querySelector(".avatar").textContent = userSettings.avatar;
-    userListItem.querySelector(".status").textContent = sanitizeString(userSettings.status?.slice(0, 32));
+    userListItem.querySelector(".status").textContent = userSettings.status?.slice(0, 32);
 }
 
 // Message & WebRTC Handlers
@@ -327,39 +327,26 @@ async function handleCandidate(from, data) {
     } catch (e) { /*console.error('ICE candidate error:', e); spams the console */ }
 }
 async function handleAnswer(from, answer) {
-    const pc = peerConnections[from];
-    if (pc) {
-        try {
-            pc.onicecandidate = (event) => { // I think this goes here?
-                if (event.candidate) {
-                    socket.emit('signal', {
-                        toClientId: from,  // or 'from' in handleOffer case
-                        data: {
-                            type: 'candidate',
-                            candidate: {
-                                candidate: event.candidate.candidate,
-                                sdpMid: event.candidate.sdpMid || '0', // Default to '0' if missing
-                                sdpMLineIndex: event.candidate.sdpMLineIndex || 0,
-                                usernameFragment: event.candidate.usernameFragment
-                            }
-                        }
-                    });
-                }
-            };
-            pc.oniceconnectionstatechange = () => {
-                if (pc.iceConnectionState === 'failed') pc.restartIce();
-            };
-            if(pc.status !== 'stable') await pc.setRemoteDescription(answer);
-            // Check if we need to create tab here
-            if (!document.querySelector(`[data-tab="${from}"]`)) {
-                const user = usersMap.get(from);
-                createTab(from, `PM: ${user?.username}`);
-                console.log("CREATING ANSWER TAB");
-            }
-        } catch (e) { console.error('Answer handling error:', e); }
-    }
+    if(DEBUG.networking) console.log(`[WebRTC] Handling answer from ${from}`);
+    const pc = peerConnections[from]; if (!pc) return;
+    try {
+        pc.onicecandidate = (event) => { // I think this goes here?
+            let candidate = event.candidate; if (!candidate) return;
+            socket.emit('signal', {
+                toClientId: from, data: { type: 'candidate', candidate: {
+                    candidate: candidate.candidate, sdpMid: candidate.sdpMid || '0',
+                    sdpMLineIndex: candidate.sdpMLineIndex || 0, usernameFragment: candidate.usernameFragment
+                }}
+            });
+        };
+        pc.oniceconnectionstatechange = () => { if (pc.iceConnectionState === 'failed') pc.restartIce(); };
+        if(pc.status !== 'stable') await pc.setRemoteDescription(answer);
+        // Check if we need to create new PM tab
+        if (!document.querySelector(`[data-tab="${from}"]`)) startPM(from);
+    } catch (e) { if(DEBUG.networking) console.error('[WebRTC] Error handling answer:', e); }
 }
 async function handleOffer(fromClientId, offer) {
+    if(DEBUG.networking) console.log(`[WebRTC] Handling offer from ${fromClientId}`);
     const pc = new RTCPeerConnection(RTCconfig);
     peerConnections[fromClientId] = pc;
     // Create data channel immediately for responder
@@ -380,6 +367,7 @@ async function handleOffer(fromClientId, offer) {
             }};
             // Send ICE candidate offer + data
             socket.emit('signal', { toClientId: fromClientId, data: newCandidate });
+            if(DEBUG.networking) console.log(`[Socket] Sending ICE candidate signal data to ${fromClientId}`);
         }
     };
     pc.oniceconnectionstatechange = () => {
@@ -393,14 +381,19 @@ async function handleOffer(fromClientId, offer) {
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             socket.emit('signal', { toClientId: fromClientId, data: answer });
+            if(DEBUG.networking) console.log(`[Socket] Sending answer signal data to ${fromClientId}`);
             monitorConnection(pc);
         }
-    } catch (e) { console.error('Offer handling error:', e); }
+    } catch (e) { if(DEBUG.networking) console.error('[WebRTC] Error handling offer:', e); }
 }
 function handleLobbyMessage(message) {// Save lobby messages
-    if (message.user !== 'System') saveChatHistory('lobby', message);
-    const chatContainer = document.getElementById('chat-lobby');
-    addMessageTo(chatContainer, message);
+    addMessageTo(document.getElementById('chat-lobby'), message);
+    saveChatHistory('lobby', message);
+}
+function handleLobbyHistory(history) {
+    if(DEBUG.networking) console.log('[Socket] Received lobby chat history data!', history);
+    history.forEach(msg => addMessageToTab('lobby', msg));
+    setLocalStorage(`chatHistory-lobby`, history);
 }
 function handleUserConnected(username) {
     // Handles user-connected event TODO: Use this to reconnect PM datachannels & send pending messages
@@ -430,104 +423,118 @@ function monitorConnection(pc) {
         if (state === 'failed' || state === 'closed') pc.restartIce();
     };
 }
+function cleanupConnection(clientId) {
+    console.log(`[WebRTC] Cleaning up connection to ${clientId}`);
+    // Cleanup peer connections, connection states, and data channel values for clientId
+    if (peerConnections[clientId]) {
+        peerConnections[clientId].close();
+        delete peerConnections[clientId];
+    }
+    delete peerConnectionStates[clientId];
+    delete dataChannels[clientId];
+}
 async function establishDataChannel(targetClientId, initiator = true) {
-    console.log(dataChannels, peerConnections);
-    console.log("ESTABLISH DATA CHANNEL WITH",targetClientId);
-    if (peerConnections[targetClientId]) {
-        if (peerConnections[targetClientId].connectionState === 'connected') return; // Connection already exists
-        peerConnections[targetClientId].close();
+    if(DEBUG.networking) console.log(`[WebRTC] Establishing data channel with ${targetClientId} (initiator: ${initiator})`);
+    if (!peerConnections[targetClientId]) { // Existing connection check
+        const state = peerConnectionStates[targetClientId];
+        if (state === 'connected' || state === 'connecting') {
+            if(DEBUG.networking) console.log(`[WebRTC] Cleaning up existing '${state}' connection to ${targetClientId}`);
+            cleanupConnection(targetClientId); // Cleanup stale connection
+            return;
+        }
     }
     const pc = new RTCPeerConnection(RTCconfig);
-    peerConnections[targetClientId] = pc;
-    // Unified handler for both offerer and answerer
-    pc.ondatachannel = (event) => { setupDataChannel(targetClientId, event.channel); };
-    // Common ICE candidate handler
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            socket.emit('signal', { toClientId: targetClientId, data: { type: 'candidate', candidate: event.candidate } });
+    peerConnections[targetClientId] = pc; peerConnectionStates[targetClientId] = 'new';
+    pc.ondatachannel = (event) => {
+        if(DEBUG.networking) console.log(`[WebRTC] Data channel received from ${targetClientId}`);
+        setupDataChannel(targetClientId, event.channel);
+    };
+    pc.onconnectionstatechange = () => {
+        if(DEBUG.networking) console.log(`[WebRTC] Connection state: ${pc.connectionState}`);
+        peerConnectionStates[targetClientId] = pc.connectionState;
+        if (pc.connectionState === 'disconnected') {
+            if(DEBUG.networking) console.log(`[WebRTC] Attempting reconnection to ${targetClientId}`);
+            setTimeout(() => establishDataChannel(targetClientId), TIMEOUT);
         }
     };
-    // Connection state tracking
-    pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'disconnected') {
-            setTimeout(() => establishDataChannel(targetClientId), TIMEOUT); // Auto-reconnect
-        }
+    pc.onicecandidate = (event) => {
+        if (!event.candidate) return;
+        if(DEBUG.networking) console.log(`[WebRTC] Sending ICE candidate to ${targetClientId}`);
+        socket.emit('signal', { toClientId: targetClientId, data: { type: 'candidate', candidate: event.candidate } });
     };
     try {
         if (initiator) {
+            if(DEBUG.networking) console.log(`[WebRTC] Creating offer for ${targetClientId}`);
             const dc = pc.createDataChannel('chat', { negotiated: true, id: 0 });
             setupDataChannel(targetClientId, dc);
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             socket.emit('signal', { toClientId: targetClientId, data: offer });
+            peerConnectionStates[targetClientId] = 'connecting';
         }
-    } catch (e) { console.error('WebRTC setup error:', e); }
+    } catch (e) { if(DEBUG.networking) console.error(`[WebRTC] Error establishing connection: ${e.message}`); }
+}
+
+// Helper functions for localStorage
+function getLocalStorage(key, ifNoValFound) {
+    const value = localStorage.getItem(key);
+    if(DEBUG.localStorage) console.log(`[LocalStorage] Getting ${key}`);
+    try {  return value !== null ? JSON.parse(value) : ifNoValFound; // Use backupVal if no localStorage value found
+    } catch (e) {
+        if(DEBUG.localStorage) console.log(`[LocalStorage] Non-JSON value for ${key}, returning alternate value`);
+        return value !== null ? value : ifNoValFound; // Uses ifNoValFound if no localStorage value found
+    }
+}
+function setLocalStorage(key, value) {
+    // Automatically trim chat history arrays
+    if (key.startsWith('chatHistory-') && Array.isArray(value)) {
+        localStorage.setItem(key, JSON.stringify(value.slice(-99))); //key === 'chatHistory-lobby' ? 99 : 999;
+    } else { localStorage.setItem(key, JSON.stringify(value)); } // Just set the item
+    if(DEBUG.localStorage) console.log(`[LocalStorage] Setting ${key}`, value);
 }
 
 // Chat Message & Persistence Handlers
 function clearChatHistory() {
     if (confirm('Clear all chat history?')) {
-        Object.keys(localStorage).forEach((id) => {
-            if (id.startsWith("chatHistory-")) {
-                localStorage.removeItem(id);// Clear localStorage chat history data
-                const chatContainer = document.getElementById('chat-'+id.substring(12));
-                if (chatContainer) chatContainer.innerHTML = '';// Empty chat containers
-            }else if(id === 'chatTabs' || id === 'lastTab'){
-                localStorage.removeItem(id);// Clear tab data also
-            }
-        });
-        window.location.reload(); // Reload the page
+        Object.keys(localStorage).forEach((id) => {if(id.startsWith("chatHistory-"))localStorage.removeItem(id)});
+        window.location.reload();
     }
 }
 function saveChatHistory(userId, message) {
     try {
-        // Get existing history or initialize new array
-        const history = JSON.parse(localStorage.getItem(`chatHistory-${userId}`)) || [];
-        // Add new message with timestamp
-        history.push({ ...message, timestamp: new Date().toISOString() });
-        // Save back to localStorage
-        localStorage.setItem(`chatHistory-${userId}`, JSON.stringify(history));
-        // Limit history size
-        if (history.length > 1000) { // Keep last 1000 messages
-            localStorage.setItem( `chatHistory-${userId}`, JSON.stringify(history.slice(-1000)) );
-        }
+        const history = getLocalStorage(`chatHistory-${userId}`, []);
+        history.push({
+            ...message, timestamp: new Date().toISOString(),
+            clientId: userId === 'lobby' ? message.clientId : userId
+        });
+        setLocalStorage(`chatHistory-${userId}`, history);
     } catch (e) { console.error('Error saving chat history:', e); }
 }
 function loadChatHistory(userId) {
-    const history = JSON.parse(localStorage.getItem(`chatHistory-${userId}`));
-    if(!history) return;
-
-    // Get chat container
+    const history = getLocalStorage(`chatHistory-${userId}`, []);
     let chatContainer = document.getElementById(`chat-${userId}`);
     if (!chatContainer) {
-        // Create container if it doesn't exist
         chatContainer = document.createElement('div');
         chatContainer.id = `chat-${userId}`;
-        console.log("LOADING HISTORY", (userId === currentTab));
-        chatContainer.className = 'overflow-y-auto h-full'+(userId !== currentTab)?'hidden':'';
+        chatContainer.className = 'overflow-y-auto h-full';
+        console.log("LAODING CHAT HISTORY: IS CURRENT TAB?",userId,(userId !== currentTab), (userId !== currentTab)?'hidden':'');
         document.getElementById('chat-container').appendChild(chatContainer);
     }
-    chatContainer.innerHTML = ''; // Clear existing messages
-
-    // Re-add messages from history
+    chatContainer.innerHTML = '';
     history.forEach(message => addMessageTo(chatContainer, message));
 }
-async function startPM(targetClientId) {
-    console.log("STARTING NEW PM WITH", targetClientId,"creating and switching to new tab too");
-    console.log("either user or tab was clicked on");
-    if (!targetClientId || targetClientId === clientId) return; // Invalid user (or user is self)
-    const user = usersMap.get(targetClientId); if (!user) return;
-    const tabLabel = `PM: ${user?.username}`; // Get user info for tab label
-    createTab(targetClientId, tabLabel, true); // Only creates tab if it doesnt exist
-    switchTab(targetClientId);
+function startPM(targetClientId) {
+    if (!targetClientId || targetClientId === clientId) { if(DEBUG.messages) {console.log("[PM] Invalid PM target");} return; }
+    const existingTab = document.querySelector(`[data-tab="${targetClientId}"]`);
+    if (existingTab) { if(DEBUG.messages) {console.log(`[PM] Switching to PM with ${targetClientId}`);} switchTab(targetClientId); return; }
+    if(DEBUG.messages) console.log(`[PM] Starting new PM with ${targetClientId}`);
+    createTab(targetClientId, `PM: ${usersMap.get(targetClientId)?.username}`, true);
 }
 function sendMessage() {
-    const message = sanitizeString(document.getElementById('message-input').value.trim()); if (!message) return;
+    const message = document.getElementById('message-input').value.trim(); if (!message) return;
     const messageObj = { user: userSettings.username, message, timestamp: new Date().toISOString() };
     document.getElementById('message-input').value = ''; // Clear input textbox
-
-    if (currentTab === 'lobby') {
-        // Handle lobby message
+    if (currentTab === 'lobby') { // Handle lobby message
         switch(messageObj.message){
             case COMMAND_TRIGGER+'test':
                 socket.emit('user-command', { clientId: clientId, command: 'test' });
@@ -536,27 +543,26 @@ function sendMessage() {
                 socket.emit('user-command', { clientId: clientId, command: 'help' });
                 break;
         }
+        if(DEBUG.messages) console.log(`[Message] Sending message data to ${currentTab}`);
         socket.emit('lobby-message', messageObj);
-    } else {
-        // Handle PM messages
+    } else { // Handle PM messages
         let dc = dataChannels[currentTab];
         if (!dc || dc.readyState !== 'open') {
-            console.log('Attempting to re-establish data channel with:',currentTab);
+            // Check if user still exists and is connected, if not, return
+            if(!usersMap.get(currentTab) || !usersMap.get(currentTab).connected) return;
+            if(DEBUG.networking) console.log(`[WebRTC] Attempting to re-establish data channel with: ${currentTab}`);
             establishDataChannel(currentTab).then(() => {
                 dc = dataChannels[currentTab];
                 if (dc) {
                     dc.onopen = () => {
-                        console.log('Re-established data channel! With:',currentTab);
-                        dc.send(JSON.stringify(messageObj));
-                        addMessageToTab(currentTab, messageObj);
+                        if(DEBUG.networking) console.log(`[WebRTC] Re-established! (with: ${currentTab})`);
+                        dc.send(JSON.stringify(messageObj)); addMessageToTab(currentTab, messageObj);
                     };
                 }
             });
         }else{
-            console.log("sending PM");
-            // Data channel is open, send message data
-            dc.send(JSON.stringify(messageObj));
-            addMessageToTab(currentTab, messageObj);
+            if(DEBUG.messages && DEBUG.networking) console.log(`[Message/WebRTC] Sending message data to ${currentTab}`);
+            dc.send(JSON.stringify(messageObj)); addMessageToTab(currentTab, messageObj);
         }
     }
 }
@@ -568,12 +574,9 @@ function addMessageTo(container, message){
         <span class="timestamp text-gray-400">[${new Date(message.timestamp).toLocaleTimeString()}]</span>
         <strong class="username"></strong><span class="message"></span>`;
     container.appendChild(messageElement);
-    messageElement.querySelector(".username").textContent = sanitizeString(message.user) + ": ";
-    messageElement.querySelector(".message").textContent = sanitizeString(message.message);
+    messageElement.querySelector(".username").textContent = message.user; // Setting `textContent` sanitizes for us
+    messageElement.querySelector(".message").textContent = ": "+message.message; // Setting `textContent` sanitizes for us
     requestAnimationFrame(() => container.scrollTop = container.scrollHeight); // Scroll to bottom of container automatically
-}
-function sanitizeString(str) {
-    return str; // TODO: sanitize the strings, this does nothing currently
 }
 
 // Initialize client.js now that all functions have been defined
