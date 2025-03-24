@@ -1,14 +1,10 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
-
 // Get the current file's directory path when using ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Keep a global reference of the window object to prevent it from being garbage collected
-let mainWindow;
+let mainWindow; // Keep a global reference of the window object to prevent it from being garbage collected
 
 // Create the browser window
 function createWindow() {
@@ -16,8 +12,6 @@ function createWindow() {
         width: 1400, height: 900,
         icon: path.join(__dirname, 'public/res/favicon.ico'), // Use 'icon.ico' for Windows
         autoHideMenuBar: true, // Hide "Files, Edit, View etc..." bar
-        //frame: false,  // Hides the default window controls
-        //titleBarStyle: 'hidden',
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,

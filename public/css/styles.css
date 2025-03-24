@@ -1,30 +1,44 @@
-/* Import fonts */
+/* Imports */
 @import url("https://fonts.googleapis.com/css2?family=Playwrite+DK+Loopet:wght@100..400&family=Winky+Sans:ital,wght@0,300..900;1,300..900&display=swap");
+/* Set page defaults */
 html, body {
   font-family: "Winky Sans", sans-serif;
 }
 
+/* Custom font override classes */
 .font1 {
-  font-family: "Playwrite DK Loopet", sans-serif;
+  font-family: "Playwrite DK Loopet", sans-serif !important;
 }
 
 .font2 {
-  font-family: "Winky Sans", sans-serif;
+  font-family: "Winky Sans", sans-serif !important;
 }
 
+/* #current-user throb on hover animation */
 #current-user:hover {
   transform: scale(1.02);
   transition: transform 0.2s ease;
 }
 
+#current-user {
+  transition: transform 0.2s ease;
+}
+
+/* Avatar glow */
 #current-user-avatar, #online-users .avatar {
   filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
+}
+
+/* Tooltip adjustments (newline support & max-width) */
+.tooltip::before {
+  white-space: pre-line;
+  max-width: 14rem;
 }
 
 /* Offline overlay & loading spinner */
 @keyframes fade {
   0%, 100% {
-    opacity: 0.5;
+    opacity: 0;
   }
   50% {
     opacity: 1;
@@ -102,6 +116,53 @@ html, body {
   animation-delay: 0.875s;
 }
 
+/* Desktop Overrides */
+@media (min-width: 769px) {
+  #mobile-menu-btn {
+    display: none !important;
+  }
+}
+/* Mobile Overrides */
+@media (max-width: 768px) {
+  html {
+    font-size: 18px !important;
+  }
+  .chat-wrapper {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .onlineusers-area {
+    display: none;
+    z-index: 1;
+    width: calc(100% - 2rem) !important;
+    height: calc(100% - 2rem);
+  }
+  .onlineusers-area.active {
+    position: fixed;
+    display: flex;
+  }
+  .chatbox-area {
+    width: 100% !important;
+    height: 100% !important;
+    padding-left: 0 !important;
+  }
+  #mobile-menu-btn {
+    display: block !important;
+  }
+  /* Font Size Adjustments */
+  .title {
+    font-size: 2rem !important;
+  }
+  .input-area, .input-area button {
+    font-size: 1.2rem !important;
+  }
+  #current-user-name {
+    font-size: 1.5rem !important;
+  }
+  .chatwindow {
+    font-size: 1.1rem !important;
+  }
+}
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -127,10 +188,28 @@ html, body {
 }
 
 /* Title styling */
+@keyframes neonFlicker {
+  1%, 9%, 11%, 39%, 41%, 59%, 61%, 69%, 71%, 99% {
+    opacity: 0.8;
+  }
+  10%, 40%, 60%, 70%, 100% {
+    opacity: 0;
+  }
+}
 .neon {
+  position: relative;
   color: white;
-  animation: fade 3s ease-in-out infinite;
-  text-shadow: 0.1rem 0 0.2rem #28D7FE, 0.2rem 0 0.2rem #28D7FE, 0.4rem 0 0.2rem #28D7FE, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0rem #1041FF, 0.4rem 0 0rem #1041FF, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0.1rem #1041FF, 0.4rem 0 0rem #1041FF, 0.1rem 0 0.8rem #1041FF, 0.2rem 0 0.8rem #1041FF, 0.4rem 0 0.8rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.1rem 0 0.5rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.4rem 0 0.5rem #1041FF, 0.1rem 0 2rem #1041FF, 0.2rem 0 2rem #1041FF, 0.4rem 0 2rem #1041FF;
+  text-shadow: 0 0 0.2rem white;
+}
+.neon::before {
+  content: attr(data-text);
+  position: absolute;
+  left: -0.1rem;
+  width: 100%;
+  pointer-events: none;
+  color: transparent;
+  animation: neonFlicker 4s ease-in-out infinite;
+  text-shadow: 0 0 0.4rem white, 0.1rem 0 0.2rem #28D7FE, 0.2rem 0 0.2rem #28D7FE, 0.4rem 0 0.2rem #28D7FE, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0rem #1041FF, 0.4rem 0 0rem #1041FF, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0.1rem #1041FF, 0.4rem 0 0rem #1041FF, 0.1rem 0 0.8rem #1041FF, 0.2rem 0 0.8rem #1041FF, 0.4rem 0 0.8rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.1rem 0 0.5rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.4rem 0 0.5rem #1041FF, 0.1rem 0 2rem #1041FF, 0.2rem 0 2rem #1041FF, 0.4rem 0 2rem #1041FF;
 }
 
 @keyframes magic {

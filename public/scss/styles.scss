@@ -1,27 +1,62 @@
-/* Import fonts */
+/* Imports */
 @import url('https://fonts.googleapis.com/css2?family=Playwrite+DK+Loopet:wght@100..400&family=Winky+Sans:ital,wght@0,300..900;1,300..900&display=swap');
 
-html, body{
-  font-family: 'Winky Sans', sans-serif;
-}
-.font1{ font-family: 'Playwrite DK Loopet', sans-serif; }
-.font2{ font-family: 'Winky Sans', sans-serif; }
-#current-user:hover {
-  transform: scale(1.02);
-  transition: transform 0.2s ease;
-}
-#current-user-avatar, #online-users .avatar {
-  filter: drop-shadow(0 0 4px rgba(255,255,255,0.5));
-}
+/* Set page defaults */
+html, body{ font-family: 'Winky Sans', sans-serif; }
+/* Custom font override classes */
+.font1{ font-family: 'Playwrite DK Loopet', sans-serif !important; }
+.font2{ font-family: 'Winky Sans', sans-serif !important; }
+/* #current-user throb on hover animation */
+#current-user:hover { transform: scale(1.02); transition: transform 0.2s ease; }
+#current-user { transition: transform 0.2s ease; }
+/* Avatar glow */
+#current-user-avatar, #online-users .avatar { filter: drop-shadow(0 0 4px rgba(255,255,255,0.5)); }
+/* Tooltip adjustments (newline support & max-width) */
+.tooltip::before { white-space: pre-line; max-width: 14rem; }
 
 /* Offline overlay & loading spinner */
-@keyframes fade {0%, 100% { opacity: 0.5; }50% { opacity: 1; }}
+@keyframes fade {0%, 100% { opacity: 0; }50% { opacity: 1; }}
 .spinner{width:80px; height:80px; margin-bottom:1rem; position:relative;}
 .dot{ position:absolute; width:16px; height:16px; background:#fff; border-radius:50%; transform:translate(-50%, -50%); animation:fade 1s linear infinite; }
 .dot1{top:0; left:50%;animation:fade 1s linear infinite;}.dot3{top:50%; left:100%; animation:fade 1s linear infinite; animation-delay:0.25s;}
 .dot5{top:100%; left:50%; animation:fade 1s linear infinite; animation-delay:0.5s;}.dot7{top:50%; left:0; animation:fade 1s linear infinite; animation-delay:0.75s;}
 .dot2{top:15%; left:85%; animation:fade 1s linear infinite; animation-delay:0.125s;}.dot4{top:85%; left:85%; animation:fade 1s linear infinite; animation-delay:0.375s;}
 .dot6{top:85%; left:15%; animation:fade 1s linear infinite; animation-delay:0.625s;}.dot8{top:15%; left:15%; animation:fade 1s linear infinite; animation-delay:0.875s;}
+
+/* Desktop Overrides */
+@media (min-width: 769px) {
+  #mobile-menu-btn { display: none !important; }
+}
+
+/* Mobile Overrides */
+@media (max-width: 768px) {
+  html { font-size: 18px !important; } // Reset base font size
+  .chat-wrapper {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .onlineusers-area {
+    display: none; // Hidden by default on mobile
+    z-index: 1;
+    width: calc(100% - 2rem) !important;
+    height: calc(100% - 2rem);
+    &.active { // Show when menu active
+      position: fixed;
+      display: flex;
+    }
+  }
+  .chatbox-area {
+    width: 100% !important;
+    height: 100% !important;
+    padding-left: 0 !important;
+  }
+  #mobile-menu-btn { display: block !important; }
+  /* Font Size Adjustments */
+  .title { font-size: 2rem !important; }
+  .input-area, .input-area button { font-size: 1.2rem !important; }
+  #current-user-name { font-size: 1.5rem !important; }
+  .chatwindow { font-size: 1.1rem !important; }
+}
 
 /* Scrollbar */
 ::-webkit-scrollbar {width: 6px;}
@@ -31,16 +66,30 @@ html, body{
 /* Firefox */* {scrollbar-width: thin;scrollbar-color: rgba(255, 255, 255, 0.5) transparent;}
 
 /* Title styling */
-.neon{
+@keyframes neonFlicker {
+  1%, 9%, 11%, /*19%, 21%, 29%, 31%,*/ 39%, 41%, /*49%, 51%,*/ 59%, 61%, 69%, 71%, /*79%, 81%, 89%, 91%,*/ 99% { opacity: 0.8; }
+  10%, /*20%, 30%,*/ 40%, /*50%,*/ 60%, 70%, /*80%, 90%,*/ 100% { opacity: 0; }
+}
+.neon {
+  position: relative;
   color: white;
-  animation: fade 3s ease-in-out infinite;
-  text-shadow:
-  .1rem 0 .2rem #28D7FE, .2rem 0 .2rem #28D7FE, .4rem 0 .2rem #28D7FE,
-  .1rem 0 .1rem #1041FF, .2rem 0 0rem #1041FF, .4rem 0 0rem #1041FF,
-  .1rem 0 .1rem #1041FF, .2rem 0 .1rem #1041FF, .4rem 0 0rem #1041FF,
-  .1rem 0 .8rem #1041FF, .2rem 0 .8rem #1041FF, .4rem 0 .8rem #1041FF, .2rem 0 .5rem #1041FF,
-  .1rem 0 .5rem #1041FF, .2rem 0 .5rem #1041FF, .4rem 0 .5rem #1041FF,
-  .1rem 0 2rem #1041FF, .2rem 0 2rem #1041FF, .4rem 0 2rem #1041FF;
+  text-shadow: 0 0 0.2rem white;
+  &::before {
+    content: attr(data-text);
+    position: absolute;
+    left: -0.1rem;
+    width: 100%;
+    pointer-events: none;
+    color: transparent;
+    animation: neonFlicker 4s ease-in-out infinite;
+    text-shadow: 0 0 0.4rem white,
+    0.1rem 0 0.2rem #28D7FE, 0.2rem 0 0.2rem #28D7FE, 0.4rem 0 0.2rem #28D7FE,
+    0.1rem 0 0.1rem #1041FF, 0.2rem 0 0rem #1041FF, 0.4rem 0 0rem #1041FF,
+    0.1rem 0 0.1rem #1041FF, 0.2rem 0 0.1rem #1041FF, 0.4rem 0 0rem #1041FF,
+    0.1rem 0 0.8rem #1041FF, 0.2rem 0 0.8rem #1041FF, 0.4rem 0 0.8rem #1041FF,
+    0.2rem 0 0.5rem #1041FF, 0.1rem 0 0.5rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.4rem 0 0.5rem #1041FF,
+    0.1rem 0 2rem #1041FF, 0.2rem 0 2rem #1041FF, 0.4rem 0 2rem #1041FF;
+  }
 }
 
 $color-red: #fd1d1d;$color-orange: #fcb045;

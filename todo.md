@@ -6,6 +6,8 @@ Bugs
 - Anyone can create a PM datastream with anyone else (currently no approval process before accepting new PMs)
 - No profanity filter (add settings option to enable/disable and update all text automatically)
 - No indication when message sending failed or why (mostly when a user goes offline during a PM session)
+- Certain mobile screens are too wide for static 768px width check on mobile
+  - Simply check if width is roughly half the height instead? Or check if height is taller than desktop?
 
 Add
 ===
