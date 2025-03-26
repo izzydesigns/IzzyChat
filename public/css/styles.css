@@ -9,6 +9,10 @@ html, body {
   display: none !important;
 }
 
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
 #chat-container, .input-area {
   background: rgba(255, 255, 255, 0.1) !important;
 }

@@ -4,6 +4,7 @@
 /* Set page defaults/overrides */
 html, body{ font-family: 'Winky Sans', sans-serif; }
 .hidden, .hide { display: none !important; }
+.cursor-pointer { cursor: pointer !important; }
 #chat-container, .input-area { background: rgba(255,255,255,0.1) !important; }
 /* Custom font override classes */
 .font1{ font-family: 'Playwrite DK Loopet', sans-serif !important; }

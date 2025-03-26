@@ -1,78 +1,76 @@
 let socket, usersMap = new Map(), peerConnections = {}, peerConnectionStates = {}, dataChannels = {};
 let currentTab, windowTitle, config, userSettings, clientId, mobileMenuOpen = false;
-let offlineOverlay;
-let curUserElem, disconnectedTextElem;
-let RTCconfig = {
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" },], // Fallback public STUN server, updated by `setupICE()`
-    iceTransportPolicy: 'all', // Allow both UDP and TCP
-    bundlePolicy: 'max-bundle', rtcpMuxPolicy: 'require'
+let RETRIES = 0, FIRST_CONNECT = true, RTC_CONFIG = {
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" },],
+    bundlePolicy: 'max-bundle', rtcpMuxPolicy: 'require', iceTransportPolicy: 'all', // Allows both UDP and TCP
 };
-let RETRIES = 0, FIRST_CONNECT = true;
+const ELEMENTS = {
+    messageInput: $('#message-input'), chatContainer: $('#chat-container'),
+    onlineUsers: $('#online-users'), currentUser: $('#current-user'),
+    settingsModal: $('#settings-modal'), tabsContainer: $('#tabs'),
+    offlineOverlay: $('#offline-overlay'), curUserElem: $('.current-user-online'),
+    mobileMenuElem: $('#mobile-menu-btn'), usernameInput: $('#username-input'),
+    avatarInput: $('#avatar-input'), statusInput: $('#status-input')
+};
 // Change these variables to whatever you'd like
 const DEBUG = { networking: false, tabs: false, messages: false, localStorage: false };
-const MAX_RETRIES = 5, TIMEOUT = 5000, CONFIG_PATH = "config.json", COMMAND_TRIGGER = "/";
-const TAB_STYLES = {
-    active: 'btn btn-primary rounded-0 rounded-top mx-1',
-    inactive: 'btn btn-outline-secondary rounded-0 rounded-top mx-1'
-};
+const CONFIG_PATH = "config.json", COMMAND_TRIGGER = "/", MAX_RETRIES = 5, TIMEOUT = 5000, MESSAGE_LIMIT = 100;
+const TAB_STYLES = { active: 'btn btn-primary rounded-0 rounded-top mx-1', inactive: 'btn btn-outline-secondary rounded-0 rounded-top mx-1' };
 
+// Window, File, and Storage Helpers
 async function initialize() {
     await loadConfig(CONFIG_PATH);
-
     // Initialize socket.io server
     const serverUrl = (window.location.hostname === 'localhost' || window.location.hostname === '') ? 'http://localhost:8080' : window.location.origin;
-    disconnectedTextElem = document.querySelector(".disconnected-text");
-    curUserElem = document.querySelector(".current-user-online");
-    offlineOverlay = document.getElementById('offline-overlay');
     socket = io(serverUrl, {transports: ['websocket'],reconnectionAttempts: MAX_RETRIES,timeout: TIMEOUT});
     socket.on('connect', () => { RETRIES = 0;
         if(FIRST_CONNECT){ FIRST_CONNECT = false; // Successfully connected for the first time
             setupSocketListeners(); setupEventListeners(); loadSettings(); loadTabState();
-            // Update original "Connecting..." text to "Disconnected." once a connection has been made
-            disconnectedTextElem.textContent = "Disconnected. Attempting to reconnect...";
-            curUserElem.textContent = "Online";
-            curUserElem.classList.remove('text-danger'); curUserElem.classList.add('text-success');
+            $('.disconnected-text').text("Disconnected. Attempting to reconnect...");
+            ELEMENTS.curUserElem.text("Online").removeClass('text-danger').addClass('text-success');
         }
-        // Notify server about user connection
         socket.emit('user-connected', { ...userSettings, clientId: clientId.length>0?clientId:undefined });
         if(DEBUG.networking) console.log('[Socket] Connected to server successfully!');
-        offlineOverlay.classList.add("d-none"); // Hide disconnected overlay
+        ELEMENTS.offlineOverlay.addClass("d-none");
     });
-    socket.on('connect_error', (err) => {
-        if(DEBUG.networking) console.log('[Socket] Connection error: ',err);
-        offlineOverlay.classList.remove("d-none");
-        curUserElem.textContent = "Offline";
-        curUserElem.classList.remove('text-success');
-        curUserElem.classList.add('text-danger');
+    socket.on('connect_error', () => {
+        ELEMENTS.offlineOverlay.removeClass("d-none");
+        ELEMENTS.curUserElem.text("Offline").removeClass('text-success').addClass('text-danger');
     });
 }
-async function loadConfig(path){
-    const getConfig = await fetch(path);
-    config = await getConfig.json(); // Load config.json data into config variable
-    // Set .title to text found in config.json under 'projectName'
-    document.querySelector('.title-bar-area > .title').innerHTML = config.projectName;
-    // Set data-text on title for custom CSS to add flicker effect to text-shadow only
-    document.querySelector('.title-bar-area > .title').setAttribute('data-text', config.projectName);
-    windowTitle = config.projectName+" - ";//+" v"+config.version;
+async function loadConfig(path) {
+    config = await (await fetch(path)).json(); // Load config.json data into config variable
+    // Set .title text & data-text to value found in config.json under 'projectName'
+    $('.title-bar-area > .title').text(config.projectName).attr('data-text', config.projectName);
+    windowTitle = config.projectName + " - "; // Set windowTitle value to projectName
     // Get userSettings from localStorage, otherwise generate new data
-    userSettings = getLocalStorage('userSettings', []);
-    // No userSettings found in localStorage? Generate new settings & save them to localStorage
-    if(userSettings.length <= 0) userSettings = generateNewUser(); setLocalStorage('userSettings', userSettings);
+    userSettings = getLocalStorage('userSettings', generateNewUser());
+    setLocalStorage('userSettings', userSettings);
     clientId = getLocalStorage('clientId', []);
 }
-function toggleMobileMenu() {
-    mobileMenuOpen = !mobileMenuOpen;
-    const sidebar = document.querySelector('.onlineusers-area');
-    sidebar.classList.toggle('active');
-    document.body.style.overflow = mobileMenuOpen ? 'hidden' : 'auto';
+function getLocalStorage(key, ifNoValFound) {
+    const value = localStorage.getItem(key);
+    if(DEBUG.localStorage) console.log(`[LocalStorage] Getting ${key}`);
+    try {  return value !== null ? JSON.parse(value) : ifNoValFound; // Use backupVal if no localStorage value found
+    } catch (e) {
+        if(DEBUG.localStorage) console.log(`[LocalStorage] Non-JSON value for ${key}, returning alternate value`);
+        return value !== null ? value : ifNoValFound; // Uses ifNoValFound if no localStorage value found
+    }
+}
+function setLocalStorage(key, value) {
+    // Use jQuery for any DOM-related storage operations
+    if (key === 'userSettings') { ELEMENTS.usernameInput.val(value.username); ELEMENTS.avatarInput.val(value.avatar); ELEMENTS.statusInput.val(value.status); }
+    // Automatically trim chat history arrays
+    if (key.startsWith('chatHistory-') && Array.isArray(value)) {
+        localStorage.setItem(key, JSON.stringify(value.slice(-MESSAGE_LIMIT))); //key === 'chatHistory-lobby' ? 99 : 999;
+    } else { localStorage.setItem(key, JSON.stringify(value)); } // Just set the item
+    if(DEBUG.localStorage) console.log(`[LocalStorage] Setting ${key}`, value);
 }
 
 // Event Listeners
 function setupEventListeners() {
-    document.getElementById('message-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage(); // Detect enter keypress
-    });
-    document.getElementById('mobile-menu-btn').addEventListener('click', toggleMobileMenu);
+    ELEMENTS.messageInput.on('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+    ELEMENTS.mobileMenuElem.click(toggleMobileMenu);
 }
 function setupSocketListeners() {
     socket.on('users-updated', updateOnlineUsers);
@@ -82,8 +80,8 @@ function setupSocketListeners() {
     socket.on('user-connected', handleUserConnected);
     socket.on('signal', handleSignal);
     socket.on('client-id', assignClientId);
-    socket.on('reconnect_failed', () => {offlineOverlay.classList.remove("d-none");});
-    socket.on('reconnect_attempt', (attempt) => { RETRIES = attempt; offlineOverlay.classList.remove("d-none"); });
+    socket.on('reconnect_failed', () => { ELEMENTS.offlineOverlay.removeClass("d-none"); });
+    socket.on('reconnect_attempt', (attempt) => { RETRIES = attempt; ELEMENTS.offlineOverlay.removeClass("d-none"); });
 }
 function setupDataChannel(clientId, dc) {
     dataChannels[clientId] = dc;
@@ -102,7 +100,6 @@ function setupDataChannel(clientId, dc) {
         addMessageToTab(clientId, JSON.parse(event.data));
     };
 }
-function assignClientId(data) { clientId = data; setLocalStorage('clientId', data); }
 
 // Settings Management
 function generateNewUser() {
@@ -115,19 +112,12 @@ function generateNewUser() {
     };
 }
 function loadSettings(settings = userSettings) {
-    // If no userSettings value retrieved from localStorage,
-    if(!settings) { userSettings = generateNewUser(); setLocalStorage('userSettings',userSettings); return; }
-    document.getElementById('username-input').value = settings.username;
-    document.getElementById('avatar-input').value = settings.avatar;
-    document.getElementById('status-input').value = settings.status;
+    if(!settings) settings = userSettings = generateNewUser(); // If no settings or !userSettings, generateNewUser
+    setLocalStorage('userSettings',settings);
 }
 function saveSettings() {
     const oldUsername = userSettings.username;
-    const newSettings = {
-        username: document.getElementById('username-input').value,
-        avatar: document.getElementById('avatar-input').value,
-        status: document.getElementById('status-input').value
-    };
+    const newSettings = { username: ELEMENTS.usernameInput.val(), avatar: ELEMENTS.avatarInput.val(), status: ELEMENTS.statusInput.val() };
     if (JSON.stringify(newSettings) !== JSON.stringify(userSettings)) {
         userSettings = newSettings;
         socket.emit('user-update', userSettings);
@@ -136,143 +126,102 @@ function saveSettings() {
         if (oldUsername !== userSettings.username) { // Handle username updates
             updateChatHistoryUsernames(oldUsername, userSettings.username);
             // Reload all chat histories for every tab to update usernames
-            document.querySelectorAll('[data-tab]').forEach(tab => loadChatHistory(tab.dataset.tab));
+            $('[data-tab]').each((i, tab) => loadChatHistory(tab.dataset.tab));
         }
     }
 }
 
 // Tab Management
 function createTab(id, label, isActive = false) {
-    // Check if tab already exists
-    const existingTab = document.querySelector(`[data-tab="${id}"]`);
-    if (existingTab) {
-        if (isActive && currentTab !== id) switchTab(id);
-        if(DEBUG.tabs) console.log(`[Tab] Tab ${id} already exists`);
+    if(DEBUG.tabs) console.log(`[Tab] Creating new tab named '${id}' which is ${isActive?'':'not '}active`);
+    if($(`[data-tab="${id}"]`).length) { // Check if tab already exists
+        if(isActive && currentTab !== id) { switchTab(id); if(DEBUG.tabs){console.log(`[Tab] Tab ${id} already exists, switching...`);} }
         return;
     }
-    if(DEBUG.tabs) console.log(`[Tab] Creating new tab named '${id}'`);
-    const tab = document.createElement('button');
-    const tabsContainer = document.getElementById('tabs');
-    if (isActive) {
-        tabsContainer.querySelectorAll(`button.${TAB_STYLES.active.split(' ')[0]}`)
-            .forEach(btn => { btn.className = TAB_STYLES.inactive; });
+    if(isActive) {
+        $('#tabs button.btn').each(function() { $(this).attr('class', TAB_STYLES.inactive); });
+        currentTab = id; showCurTabChat();
     }
-    tab.className = isActive ? TAB_STYLES.active : TAB_STYLES.inactive;
-    tab.textContent = label; tab.dataset.tab = id;
-    // Create onclick handler for each tab & switch tabs
-    tab.onclick = () => switchTab(id);
-    // Create right click handler & close the tab upon click
-    tab.oncontextmenu = (e) => {
-        e.preventDefault();
-        if (id !== 'lobby') {
-            tab.remove();
-            if (currentTab === id) switchTab('lobby');
+    const tab = $(`<button>`).addClass(isActive ? TAB_STYLES.active : TAB_STYLES.inactive).text(label).attr('data-tab', id)
+        .click(() => switchTab(id)).on('contextmenu', e => { e.preventDefault();
+            if(id !== 'lobby') { tab.remove(); if(currentTab === id) switchTab('lobby'); saveTabState(); }
             if(DEBUG.tabs) console.log(`[Tab] Closing PM tab with ${id}`);
-        }
-    };
-    tabsContainer.appendChild(tab);
-    if (isActive) {
-        currentTab = id; // Set currentTab if new tab isActive
-        showCurTabChat(); // Display current chat tab's chat-container
-    }
-    saveTabState(); // Save new tab state (we save tab state when we call switchTab
-    if(id === 'lobby') return; // Return if creating lobby tab, otherwise establish data channels
-    const user = usersMap.get(id);
-    // Check if user is online and if so, attempt connection
-    if (user?.connected) establishDataChannel(id).then();
+        });
+    ELEMENTS.tabsContainer.append(tab); saveTabState();
+    if(id !== 'lobby' && usersMap.get(id)?.connected) establishDataChannel(id);
 }
 function switchTab(tabId) {
     if(DEBUG.tabs) console.log("[Tab] Switching tabs to",tabId);
     if (tabId === currentTab) { if(DEBUG.tabs) { console.log("[Tab] Already on tab", tabId); } return; }
-    currentTab = tabId; saveTabState();
-    // Assign classes depending on the 'data-tab' value (tabId matched? use different tailwind classes)
-    document.querySelectorAll('#tabs button').forEach(btn => {
-        btn.className = btn.dataset.tab === tabId ? TAB_STYLES.active : TAB_STYLES.inactive;
+    currentTab = tabId; saveTabState(); showCurTabChat();
+    // Assign classes depending on the 'data-tab' value (tabId matched? use different TAB_STYLES class list)
+    ELEMENTS.tabsContainer.find('button').each((i, btn) => {
+        $(btn).attr('class', btn.dataset.tab === tabId ? TAB_STYLES.active : TAB_STYLES.inactive);
     });
-    showCurTabChat(); // Display current chat tab's chat-container
 }
 function showCurTabChat() {
-    if(document.querySelector('.onlineusers-area').classList.contains('active')) toggleMobileMenu();
+    if ($('.onlineusers-area').hasClass('active')) toggleMobileMenu();
     // Create chat div for currentTab messages if it doesn't already exist
-    if(!document.getElementById(`chat-${currentTab}`)) {
-        const chatDiv = document.createElement('div');
-        chatDiv.id = `chat-${currentTab}`; chatDiv.className = 'overflow-y-auto h-full';
-        document.getElementById('chat-container').appendChild(chatDiv);
+    if(!$(`#chat-${currentTab}`).length) {
+        ELEMENTS.chatContainer.append($(`<div>`).attr('id', `chat-${currentTab}`).addClass('overflow-y-auto h-full'));
     }
     // Show or hide the chat containers based on whether it's the currentTab or not
-    document.querySelectorAll('#chat-container > div').forEach(div => {
-        if(div.id === `chat-${currentTab}`) div.classList.remove('d-none'); else div.classList.add('d-none');
-    });
-    const curChat = document.getElementById('chat-'+currentTab); if(!curChat) return;
+    ELEMENTS.chatContainer.children().each((i, div) => $(div).toggleClass('d-none', div.id !== `chat-${currentTab}`));
     loadChatHistory(currentTab); // Load chat history of the currentTab
 }
 function addMessageToTab(tabId, message) {
-    if (!document.getElementById(`chat-${tabId}`)) {
-        createTab(tabId, `PM: ${message.user}`); // If no tab exists, create one
-    }
-    const chatContainer = document.getElementById(`chat-${tabId}`); if(!chatContainer) return;
+    const chatContainer = $(`#chat-${tabId}`);
+    if (!chatContainer.length) { createTab(tabId, `PM: ${message.user}`); return; }
     addMessageTo(chatContainer, message);
     if(tabId !== 'lobby') saveChatHistory(tabId, message);
-    if(currentTab !== tabId) chatContainer.classList.add('d-none'); // Ensures chat window is hidden if its not the currentTab
+    if(currentTab !== tabId) chatContainer.addClass('d-none'); // Ensures chat window is hidden if it's not the currentTab
 }
 function saveTabState() {
-    const tabs = Array.from(document.querySelectorAll('#tabs button'))
-        .map(btn => ({ id: btn.dataset.tab, label: btn.textContent }));
-    let tabName; tabs.forEach(tab => {if(tab.id === currentTab){tabName=tab.label;}});
+    const tabs = $('#tabs button').map((i, btn) => ({ id: $(btn).data('tab'), label: $(btn).text() })).get();
+    let tabName; $.each(tabs, (i, tab) => { if (tab.id === currentTab) { tabName = tab.label; } });
     setLocalStorage('chatTabs', tabs); setLocalStorage('lastTab', currentTab);
     document.title = windowTitle + ((currentTab === 'lobby') ? 'Lobby' : tabName);
 }
 function loadTabState() {
-    const savedTabs = getLocalStorage('chatTabs', [{id:'lobby',label:'Lobby'}]);
+    let curTabName, savedTabs = getLocalStorage('chatTabs', [{id:'lobby',label:'Lobby'}]);
     currentTab = getLocalStorage('lastTab', 'lobby');
-    let curTabName;
     savedTabs.forEach(tab => { // Create a tab for each savedTab value
         createTab(tab.id, tab.label, tab.id === currentTab);
         if(tab.id === currentTab) curTabName = tab.label;
     });
-    document.querySelectorAll('[data-tab]').forEach(tab => {
-        if (tab.dataset.tab !== 'lobby') loadChatHistory(tab.dataset.tab); // Load PM histories for existing tabs
-    });
+    $('[data-tab]').each((i, tab) => {if (tab.dataset.tab !== 'lobby') loadChatHistory(tab.dataset.tab);});
     document.title = windowTitle + ((currentTab === 'lobby') ? 'Lobby' : curTabName);
 }
 
-// User List Management
+// User List Management & UI Handlers
 function getUserProfileHTML(username, isCurUser, clientId, isConnected) {
     return `<div class="user-profile user-${username} d-flex align-items-center p-2 mb-2 bg-dark bg-opacity-25 rounded-3 cursor-pointer user-select-none 
         ${isCurUser ? 'border border-primary' : ''}" onclick="${isCurUser ? '' : `startPM('${clientId}')`}" 
-        ${isCurUser ? `data-bs-toggle="modal" data-bs-target="#settings-modal"` : '' }
-        title="${isCurUser ? 'Edit your profile' : 'Click to start Private Messaging'}"
-        style="transition: background-color 0.2s ease;">
+        ${isCurUser ? `data-bs-toggle="modal" data-bs-target="#settings-modal"`:``}
+        title="${isCurUser ? 'Edit your profile' : 'Click to start Private Messaging'}">
         <span class="user-avatar fs-5 me-3"></span>
         <div class="flex-grow-1 text-truncate">
             <div class="d-flex align-items-center">
-                <div class="user-name text-truncate"></div>
-                ${isCurUser ? '<span class="badge bg-primary ms-2">You</span>' : ''}
+                <div class="user-name text-truncate"></div>${isCurUser ? '<span class="badge bg-primary ms-2">You</span>' : ''}
             </div>
             <div class="user-status text-white-50 small text-truncate"></div>
-            <span class="user-online small ${isConnected ? 'text-success' : 'text-danger'}">
-                ${isConnected ? 'Online' : 'Offline'}
-            </span>
+            <span class="user-online small ${isConnected ? 'text-success' : 'text-danger'}">${isConnected ? 'Online' : 'Offline'}</span>
         </div>
     </div>`;
 }
 function handleUsernameChange(clientId, oldUsername, newUsername) {
-    const pmTab = document.querySelector(`[data-tab="${clientId}"]`);
-    if (pmTab) { pmTab.textContent = `PM: ${newUsername}`; saveTabState(); }
+    const pmTab = $(`[data-tab="${clientId}"]`);
+    if (pmTab.length) { pmTab.text(`PM: ${newUsername}`); saveTabState(); }
     updateChatHistoryUsernames(oldUsername, newUsername);
     // Force reload all affected chat histories
-    document.querySelectorAll('[data-tab]').forEach(tab => {
-        const tabId = tab.dataset.tab; loadChatHistory(tabId);
-    });
+    $('[data-tab]').each((i, tab) => loadChatHistory(tab.dataset.tab));
 }
 function updateChatHistoryUsernames(oldName, newName) {
     // Update all chat history data (both lobby and PM localStorage data)
     Object.keys(localStorage).forEach(key => {
         if (key.startsWith('chatHistory-')) {
             const history = getLocalStorage(key, []);
-            setLocalStorage(key, history.map(msg => {
-                if (msg.user === oldName) { return {...msg, user: newName}; } return msg;
-            }));
+            setLocalStorage(key, history.map(msg => {if (msg.user === oldName) { return {...msg, user: newName}; } return msg;}));
         }
     });
 }
@@ -285,58 +234,50 @@ function updateOnlineUsers(users = []) {
         }
     });
     usersMap = new Map(users?.map(user => [user.clientId, user]));
-    const container = document.getElementById('online-users'); if(!container) return;
-    container.innerHTML = ''; // Since we use innerHTML += to add each user, we reset it each new call
-    users.sort((userA, userB) => { // Move current user to top of online users list
-        if (userA.username === userSettings.username) return -1; // If userA = current user, place at top
-        if (userB.username === userSettings.username) return 1; // If userB = current user, move userA down
-        return 0;// Otherwise, maintain the current order
-    });
-    users.map((user) => {
-        let isCurUser = user.username === userSettings.username;
-        if(isCurUser) updateCurrentUserDisplay();
-        let usernameParsed = user.username.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_'); // Alpha-neumeric only
-        container.innerHTML += getUserProfileHTML(usernameParsed, isCurUser, user.clientId, user.connected);
-        // Set tooltip text
-        container.querySelector(".user-" + usernameParsed).setAttribute("title",
-            isCurUser ? ('Status: ' + userSettings.status + '\n\nEdit your profile') ://\n\nUser ID: ' + user.clientId) :
-            ('Status: ' + user.status + '\n\nClick to start Private Messaging')// + '\nUser ID: ' + user.clientId)
-        );
-        // Set user info afterward via .textContent to ensure user inputs are sanitized
-        container.querySelector(".user-"+usernameParsed+" .user-name").textContent = user.username;
-        container.querySelector(".user-"+usernameParsed+" .user-avatar").textContent = user.avatar;
-        container.querySelector(".user-"+usernameParsed+" .user-status").textContent = user.status;
-    }).join('');
+    const container = ELEMENTS.onlineUsers.empty();
+    users.sort((a, b) => a.username === userSettings.username ? -1 : b.username === userSettings.username ? 1 : 0)
+        .forEach(user => {
+            const isCurUser = user.username === userSettings.username;
+            if(isCurUser) updateCurrentUserDisplay();
+            const usernameParsed = user.username.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_');
+            const userHtml = $(getUserProfileHTML(usernameParsed, isCurUser, user.clientId, user.connected));
+            // Set tooltip text
+            userHtml.attr('title', isCurUser ? `Status: ${userSettings.status}\n\nEdit your profile` :
+                `Status: ${user.status}\n\nClick to start Private Messaging`);
+            // Set user info afterward via .text to ensure user inputs are sanitized
+            userHtml.find('.user-name').text(user.username);
+            userHtml.find('.user-avatar').text(user.avatar);
+            userHtml.find('.user-status').text(user.status);
+            container.append(userHtml);
+        });
 }
 function updateCurrentUserDisplay() {
-    document.getElementById('current-user-avatar').textContent = userSettings.avatar;
-    document.getElementById('current-user-name').textContent =
-        userSettings.username;
-    document.getElementById('current-user-status').textContent =
-        userSettings.status;
-    let userListItem = document.querySelector(`.user-profile[title*="${clientId}"]`);
-    if(!userListItem) return;
-    userListItem.querySelector(".username").textContent = userSettings.username;
-    userListItem.querySelector(".avatar").textContent = userSettings.avatar;
-    userListItem.querySelector(".status").textContent = userSettings.status;
+    $('#current-user-avatar').text(userSettings.avatar);
+    $('#current-user-name').text(userSettings.username);
+    $('#current-user-status').text(userSettings.status);
+    const userListItem = $(`.user-profile[title*="${clientId}"]`); if(!userListItem.length) return;
+    userListItem.find(".username").text(userSettings.username);
+    userListItem.find(".avatar").text(userSettings.avatar);
+    userListItem.find(".status").text(userSettings.status);
+}
+function toggleMobileMenu() {
+    mobileMenuOpen = !mobileMenuOpen;
+    $('.onlineusers-area').toggleClass('active'); $('body').css('overflow', mobileMenuOpen ? 'hidden' : 'auto');
 }
 
 // Message & WebRTC Handlers
 async function handleCandidate(from, data) {
-    const pc = peerConnections[from];
-    if (!pc || !data.candidate) return;
+    const pc = peerConnections[from]; if (!pc || !data.candidate) return;
     try {
-        // Validate required candidate fields
-        const candidateData = {
+        const candidateData = { // Validate required candidate fields
             candidate: data.candidate.candidate,
             sdpMid: data.candidate.sdpMid || '0',
             sdpMLineIndex: data.candidate.sdpMLineIndex ?? 0,
             usernameFragment: data.candidate.usernameFragment || ''
         };
-        // Validate candidate format
-        if (!candidateData.candidate.includes('typ')) return;
+        if (!candidateData.candidate.includes('typ')) return; // Validate candidate format
         await pc.addIceCandidate(new RTCIceCandidate(candidateData));
-    } catch (e) { /*console.error('ICE candidate error:', e); spams the console */ }
+    } catch (e) { /*if(DEBUG.networking) console.error('[WebRTC] Error handling ICE candidate:', e); spams the console */ }
 }
 async function handleAnswer(from, answer) {
     if(DEBUG.networking) console.log(`[WebRTC] Handling answer from ${from}`);
@@ -351,16 +292,15 @@ async function handleAnswer(from, answer) {
                 }}
             });
         };
-        pc.oniceconnectionstatechange = () => { if (pc.iceConnectionState === 'failed') pc.restartIce(); };
+        monitorConnection(pc);
         if(pc.status !== 'stable') await pc.setRemoteDescription(answer);
         // Check if we need to create new PM tab
-        if (!document.querySelector(`[data-tab="${from}"]`)) startPM(from);
+        if (!$(`[data-tab="${from}"]`).length) startPM(from);
     } catch (e) { if(DEBUG.networking) console.error('[WebRTC] Error handling answer:', e); }
 }
 async function handleOffer(fromClientId, offer) {
     if(DEBUG.networking) console.log(`[WebRTC] Handling offer from ${fromClientId}`);
-    const pc = new RTCPeerConnection(RTCconfig);
-    peerConnections[fromClientId] = pc;
+    const pc = new RTCPeerConnection(RTC_CONFIG); peerConnections[fromClientId] = pc;
     // Create data channel immediately for responder
     const dc = pc.createDataChannel('chat', { negotiated: true, id: 0 });
     setupDataChannel(fromClientId, dc);
@@ -368,25 +308,19 @@ async function handleOffer(fromClientId, offer) {
     const user = usersMap.get(fromClientId);
     createTab(fromClientId, `PM: ${user?.username}`);
     // Handle data channel setup
+    monitorConnection(pc);
     pc.ondatachannel = (event) => { setupDataChannel(fromClientId, event.channel); };
     pc.onicecandidate = (event) => {
         if (event.candidate) {
             const newCandidate = { type: 'candidate', candidate: {
-                candidate: event.candidate.candidate,
-                sdpMid: event.candidate.sdpMid || '0', // Default to '0' if missing
-                sdpMLineIndex: event.candidate.sdpMLineIndex || 0,
-                usernameFragment: event.candidate.usernameFragment
+                candidate: event.candidate.candidate, sdpMid: event.candidate.sdpMid || '0', // Default to '0' if missing
+                sdpMLineIndex: event.candidate.sdpMLineIndex || 0, usernameFragment: event.candidate.usernameFragment
             }};
             // Send ICE candidate offer + data
             socket.emit('signal', { toClientId: fromClientId, data: newCandidate });
             if(DEBUG.networking) console.log(`[Socket] Sending ICE candidate signal data to ${fromClientId}`);
         }
     };
-    pc.oniceconnectionstatechange = () => {
-        let state = pc.iceConnectionState;
-        if (state === 'failed' || state === 'closed') pc.restartIce();
-    };
-
     try {
         if(pc.connectionState !== 'closed'){
             await pc.setRemoteDescription(offer);
@@ -399,14 +333,13 @@ async function handleOffer(fromClientId, offer) {
     } catch (e) { if(DEBUG.networking) console.error('[WebRTC] Error handling offer:', e); }
 }
 function handleLobbyMessage(message) {// Save lobby messages
-    addMessageTo(document.getElementById('chat-lobby'), message);
-    saveChatHistory('lobby', message);
+    addMessageTo($('#chat-lobby'), message); saveChatHistory('lobby', message);
 }
 function handleLobbyHistory(history) {
     if(DEBUG.networking) console.log('[Socket] Received lobby chat history data!', history);
-    const lobbyChat = document.getElementById('chat-lobby');
-    if (lobbyChat) {
-        lobbyChat.innerHTML = ''; // Clear existing messages before adding the server's history
+    const lobbyChat = $('#chat-lobby');
+    if (lobbyChat.length) {
+        lobbyChat.empty(); // Clear existing messages before adding the server's history
         history.forEach(msg => addMessageTo(lobbyChat, msg));
     }
     setLocalStorage(`chatHistory-lobby`, history);
@@ -428,26 +361,21 @@ function handleUserDisconnected(username) {
 }
 async function handleSignal({ fromClientId, data }) {
     try {
-        if (data.type === 'offer') { await handleOffer(fromClientId, data);
-        } else if (data.type === 'answer') { await handleAnswer(fromClientId, data);
-        } else if (data.type === 'candidate') { await handleCandidate(fromClientId, data); }
+        if (data.type === 'offer') { await handleOffer(fromClientId, data); }
+        if (data.type === 'answer') { await handleAnswer(fromClientId, data); }
+        if (data.type === 'candidate') { await handleCandidate(fromClientId, data); }
     } catch (e) { console.error('Signal handling error:', e); }
 }
 function monitorConnection(pc) {
     pc.oniceconnectionstatechange = () => {
-        let state = pc.iceConnectionState;
-        if (state === 'failed' || state === 'closed') pc.restartIce();
+        if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') pc.restartIce();
     };
 }
 function cleanupConnection(clientId) {
     if(DEBUG.networking) console.log(`[WebRTC] Cleaning up connection to ${clientId}`);
     // Cleanup peer connections, connection states, and data channel values for clientId
-    if (peerConnections[clientId]) {
-        peerConnections[clientId].close();
-        delete peerConnections[clientId];
-    }
-    delete peerConnectionStates[clientId];
-    delete dataChannels[clientId];
+    if (peerConnections[clientId]) { peerConnections[clientId].close(); delete peerConnections[clientId]; }
+    delete peerConnectionStates[clientId]; delete dataChannels[clientId];
 }
 async function establishDataChannel(targetClientId, initiator = true) {
     if(DEBUG.networking) console.log(`[WebRTC] Establishing data channel with ${targetClientId} (initiator: ${initiator})`);
@@ -459,7 +387,7 @@ async function establishDataChannel(targetClientId, initiator = true) {
             return;
         }
     }
-    const pc = new RTCPeerConnection(RTCconfig);
+    const pc = new RTCPeerConnection(RTC_CONFIG);
     peerConnections[targetClientId] = pc; peerConnectionStates[targetClientId] = 'new';
     pc.ondatachannel = (event) => {
         if(DEBUG.networking) console.log(`[WebRTC] Data channel received from ${targetClientId}`);
@@ -490,90 +418,55 @@ async function establishDataChannel(targetClientId, initiator = true) {
         }
     } catch (e) { if(DEBUG.networking) console.error(`[WebRTC] Error establishing connection: ${e.message}`); }
 }
-
-// Helper functions for localStorage
-function getLocalStorage(key, ifNoValFound) {
-    const value = localStorage.getItem(key);
-    if(DEBUG.localStorage) console.log(`[LocalStorage] Getting ${key}`);
-    try {  return value !== null ? JSON.parse(value) : ifNoValFound; // Use backupVal if no localStorage value found
-    } catch (e) {
-        if(DEBUG.localStorage) console.log(`[LocalStorage] Non-JSON value for ${key}, returning alternate value`);
-        return value !== null ? value : ifNoValFound; // Uses ifNoValFound if no localStorage value found
-    }
-}
-function setLocalStorage(key, value) {
-    // Automatically trim chat history arrays
-    if (key.startsWith('chatHistory-') && Array.isArray(value)) {
-        localStorage.setItem(key, JSON.stringify(value.slice(-99))); //key === 'chatHistory-lobby' ? 99 : 999;
-    } else { localStorage.setItem(key, JSON.stringify(value)); } // Just set the item
-    if(DEBUG.localStorage) console.log(`[LocalStorage] Setting ${key}`, value);
-}
+function assignClientId(data) { clientId = data; setLocalStorage('clientId', data); }
 
 // Chat Message & Persistence Handlers
 function clearChatHistory() {
     if (confirm('Clear all chat history?')) {
         Object.keys(localStorage).forEach((id) => {if(id.startsWith("chatHistory-"))localStorage.removeItem(id)});
-        window.location.reload();
+        ELEMENTS.chatContainer.children().not('#chat-lobby').remove(); $('#chat-lobby').empty();
+        //window.location.reload(); // Use if you want to reload lobby chat history from server
     }
 }
 function saveChatHistory(userId, message) {
     try {
         const history = getLocalStorage(`chatHistory-${userId}`, []);
-        history.push({
-            ...message, timestamp: new Date().toISOString(),
-            clientId: userId === 'lobby' ? message.clientId : userId
-        });
+        history.push({ ...message, timestamp: new Date().toISOString(), clientId: (userId === 'lobby' ? message.clientId : userId) });
         setLocalStorage(`chatHistory-${userId}`, history);
     } catch (e) { console.error('Error saving chat history:', e); }
 }
 function loadChatHistory(userId) {
     const history = getLocalStorage(`chatHistory-${userId}`, []);
-    let chatContainer = document.getElementById(`chat-${userId}`);
-    if (!chatContainer) {
-        chatContainer = document.createElement('div');
-        chatContainer.id = `chat-${userId}`;
-        chatContainer.className = 'overflow-y-auto h-full';
-        document.getElementById('chat-container').appendChild(chatContainer);
-    }
-    chatContainer.innerHTML = '';
-    history.forEach(message => addMessageTo(chatContainer, message));
-    if(userId !== currentTab) chatContainer.classList.add('d-none'); // Hide newly created chat if not currentTab
+    const chatContainer = $(`#chat-${userId}`);
+    if(!chatContainer.length){ELEMENTS.chatContainer.append($('<div>').attr('id',`chat-${userId}`).addClass('overflow-y-auto h-full'));}
+    chatContainer.empty(); history.forEach(message => addMessageTo(chatContainer, message));
+    chatContainer.toggleClass('d-none', userId !== currentTab);
 }
 function startPM(targetClientId) {
     if (!targetClientId || targetClientId === clientId) { if(DEBUG.messages) {console.log("[PM] Invalid PM target");} return; }
-    const existingTab = document.querySelector(`[data-tab="${targetClientId}"]`);
-    if (existingTab) { if(DEBUG.messages) {console.log(`[PM] Switching to PM with ${targetClientId}`);} switchTab(targetClientId); return; }
+    const $existingTab = $(`[data-tab="${targetClientId}"]`);
+    if ($existingTab.length) {
+        if (DEBUG.messages) {console.log(`[PM] Switching to PM with ${targetClientId}`);} switchTab(targetClientId); return;
+    }
     if(DEBUG.messages) console.log(`[PM] Starting new PM with ${targetClientId}`);
     createTab(targetClientId, `PM: ${usersMap.get(targetClientId)?.username}`, true);
 }
 function sendMessage() {
-    const message = document.getElementById('message-input').value.trim(); if (!message) return;
+    const message = ELEMENTS.messageInput.val().trim(); if(!message) return;
     const messageObj = { user: userSettings.username, message, timestamp: new Date().toISOString() };
-    document.getElementById('message-input').value = ''; // Clear input textbox
-    if (currentTab === 'lobby') { // Handle lobby message
-        switch(messageObj.message){
-            case COMMAND_TRIGGER+'test':
-                socket.emit('user-command', { clientId: clientId, command: 'test' });
-                break;
-            case COMMAND_TRIGGER+'help':
-                socket.emit('user-command', { clientId: clientId, command: 'help' });
-                break;
-        }
+    ELEMENTS.messageInput.val(''); // Clear input textbox
+    if(currentTab === 'lobby') { // Handle lobby message
         if(DEBUG.messages) console.log(`[Message] Sending message data to ${currentTab}`);
         socket.emit('lobby-message', messageObj);
     } else { // Handle PM messages
         let dc = dataChannels[currentTab];
-        if (!dc || dc.readyState !== 'open') {
-            // Check if user still exists and is connected, if not, return
-            if(!usersMap.get(currentTab) || !usersMap.get(currentTab).connected) return;
+        if (!dc || dc.readyState !== 'open') { // Check if user still exists and is connected, if not, return
+            if(!usersMap.get(currentTab)?.connected) return;
             if(DEBUG.networking) console.log(`[WebRTC] Attempting to re-establish data channel with: ${currentTab}`);
-            establishDataChannel(currentTab).then(() => {
-                dc = dataChannels[currentTab];
-                if (dc) {
-                    dc.onopen = () => {
-                        if(DEBUG.networking) console.log(`[WebRTC] Re-established! (with: ${currentTab})`);
-                        dc.send(JSON.stringify(messageObj)); addMessageToTab(currentTab, messageObj);
-                    };
+            establishDataChannel(currentTab).then(() => { dc = dataChannels[currentTab];
+                dc.onopen = () => {
+                    if(DEBUG.networking) console.log(`[WebRTC] Re-established! (with: ${currentTab})`);
+                    dc.send(JSON.stringify(messageObj)); addMessageToTab(currentTab, messageObj);
                 }
             });
         }else{
@@ -583,17 +476,16 @@ function sendMessage() {
     }
 }
 function addMessageTo(container, message){
-    if(!container || !message) return;
-    const messageElement = document.createElement('div');
-    messageElement.className = 'mb-1'; messageElement.innerHTML = `
+    if(!container || !message) {console.error("INVALID CONTAINER OR MESSAGE IN ADDMSGTO:",container,message);return;}
+    const containerElem = $(container), parentElem = containerElem.parent().get(0) || containerElem.get(0);
+    const messageElem = $('<div>').addClass('mb-1').html(`
         <div class="message-wrapper d-flex align-items-baseline gap-1">
-            <small class="text-secondary">[${new Date(message.timestamp).toLocaleTimeString()}]</small>
-            <strong class="username text-primary"></strong>:<span class="message text-break"></span>
-        </div>`;
-    container.appendChild(messageElement);
-    messageElement.querySelector(".username").textContent = message.user;
-    messageElement.querySelector(".message").textContent = message.message;
-    requestAnimationFrame(() => container.parentElement.scrollTop = container.parentElement.scrollHeight); // Scroll to bottom of container automatically
+            <small class="timestamp text-secondary"></small><strong class="username text-primary"></strong>:<span class="message text-break"></span>
+        </div>`);
+    messageElem.find('small').text(`[${new Date(message.timestamp).toLocaleTimeString()}]`);
+    messageElem.find(".username").text(message.user); messageElem.find(".message").text(message.message);
+    containerElem.append(messageElem);
+    if (parentElem) requestAnimationFrame(() => $(parentElem).scrollTop($(parentElem).prop('scrollHeight')));
 }
 
 // Initialize client.js now that all functions have been defined
