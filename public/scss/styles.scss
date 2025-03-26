@@ -1,18 +1,18 @@
 /* Imports */
 @import url('https://fonts.googleapis.com/css2?family=Playwrite+DK+Loopet:wght@100..400&family=Winky+Sans:ital,wght@0,300..900;1,300..900&display=swap');
 
-/* Set page defaults */
+/* Set page defaults/overrides */
 html, body{ font-family: 'Winky Sans', sans-serif; }
+.hidden, .hide { display: none !important; }
+#chat-container, .input-area { background: rgba(255,255,255,0.1) !important; }
 /* Custom font override classes */
 .font1{ font-family: 'Playwrite DK Loopet', sans-serif !important; }
 .font2{ font-family: 'Winky Sans', sans-serif !important; }
 /* #current-user throb on hover animation */
 #current-user:hover { transform: scale(1.02); transition: transform 0.2s ease; }
-#current-user { transition: transform 0.2s ease; }
+#current-user, .user-profile { transition: transform 0.2s ease; }
 /* Avatar glow */
 #current-user-avatar, #online-users .avatar { filter: drop-shadow(0 0 4px rgba(255,255,255,0.5)); }
-/* Tooltip adjustments (newline support & max-width) */
-.tooltip::before { white-space: pre-line; max-width: 14rem; }
 
 /* Offline overlay & loading spinner */
 @keyframes fade {0%, 100% { opacity: 0; }50% { opacity: 1; }}
@@ -30,19 +30,19 @@ html, body{ font-family: 'Winky Sans', sans-serif; }
 
 /* Mobile Overrides */
 @media (max-width: 768px) {
-  html { font-size: 18px !important; } // Reset base font size
+  html { font-size: 20px !important; } // Set base font size
   .chat-wrapper {
-    flex-direction: column;
-    gap: 0.5rem;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
   }
   .onlineusers-area {
-    display: none; // Hidden by default on mobile
-    z-index: 1;
+    display: none !important; // Hidden by default on mobile
+    z-index: 3 !important;
     width: calc(100% - 2rem) !important;
-    height: calc(100% - 2rem);
+    height: calc(100% - 2rem) !important;
     &.active { // Show when menu active
-      position: fixed;
-      display: flex;
+      position: fixed !important;
+      display: flex !important;
     }
   }
   .chatbox-area {
@@ -81,7 +81,7 @@ html, body{ font-family: 'Winky Sans', sans-serif; }
     width: 100%;
     pointer-events: none;
     color: transparent;
-    animation: neonFlicker 4s ease-in-out infinite;
+    animation: neonFlicker 6s ease-in-out infinite;
     text-shadow: 0 0 0.4rem white,
     0.1rem 0 0.2rem #28D7FE, 0.2rem 0 0.2rem #28D7FE, 0.4rem 0 0.2rem #28D7FE,
     0.1rem 0 0.1rem #1041FF, 0.2rem 0 0rem #1041FF, 0.4rem 0 0rem #1041FF,
@@ -90,35 +90,4 @@ html, body{ font-family: 'Winky Sans', sans-serif; }
     0.2rem 0 0.5rem #1041FF, 0.1rem 0 0.5rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.4rem 0 0.5rem #1041FF,
     0.1rem 0 2rem #1041FF, 0.2rem 0 2rem #1041FF, 0.4rem 0 2rem #1041FF;
   }
-}
-
-$color-red: #fd1d1d;$color-orange: #fcb045;
-$color-yellow: #fcef45;$color-green: #81fc45;
-$color-blue: #45d8fc;$color-indigo: #5245fc;
-$color-violet: #af45fc;$color-white: #ffffff;
-@mixin crossBrowserPrefix($property, $css) {
-  -webkit-#{$property}: #{$css};
-  -moz-#{$property}: #{$css};
-  -ms-#{$property}: #{$css};
-  -o-#{$property}: #{$css};
-  #{$property}: #{$css};
-}
-@keyframes magic {
-  from { background-position: -100% -100%; }
-  to { background-position: 200% 200%; }
-}
-.rainbow-text {
-  font-family: 'Pacifico', sans-serif;
-  color: transparent;
-  background-image: linear-gradient(
-    to right,
-    $color-red, $color-orange,
-    $color-yellow, $color-green,
-    $color-blue, $color-indigo,
-    $color-violet, $color-red,
-  );
-  background-size: 200% 200%;
-  background-repeat: repeat;
-  @include crossBrowserPrefix(animation, magic 3s infinite ease-in-out alternate);
-  @include crossBrowserPrefix(background-clip, text);
 }

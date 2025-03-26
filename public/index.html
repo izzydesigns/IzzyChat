@@ -2,110 +2,108 @@
 <html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="/res/favicon.ico">
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
-    <!--<link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />-->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link rel="stylesheet" href="css/styles.css">
+    <title></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="/assets/favicon.ico" rel="icon">
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/styles.css" rel="stylesheet">
+    <script src="js/libs/jquery.min.js"></script>
+    <script src="js/libs/bootstrap.bundle.min.js"></script>
+    <script src="js/libs/socket.io.min.js"></script>
 </head>
-<body class="bg-neutral-900 text-white h-screen overflow-hidden">
+<body class="bg-dark text-light vh-100 overflow-hidden">
 <!-- Mobile Menu Button -->
-<button id="mobile-menu-btn" class="md:hidden fixed top-6 left-6 z-2 btn btn-circle btn-outline btn-lg hover:bg-transparent hover:border-current">☰</button>
+<button id="mobile-menu-btn" style="z-index: 999; width: 3rem; height: 3rem;"
+        class="d-md-none fixed-top start-0 m-4 btn btn-outline-light rounded-circle">☰</button>
+
 <!-- Offline Overlay -->
-<div id="offline-overlay" class="w-full h-full fixed z-10 flex flex-col items-center justify-center bg-neutral-800/50">
-    <div class="spinner flex items-center justify-center">
-        <div class="spinner">
-            <div class="dot dot1"></div><div class="dot dot3"></div><div class="dot dot5"></div><div class="dot dot7"></div>
-            <div class="dot dot2"></div><div class="dot dot4"></div><div class="dot dot6"></div><div class="dot dot8"></div>
-        </div>
+<div id="offline-overlay" class="w-100 h-100 position-fixed d-flex flex-column align-items-center
+    justify-content-center bg-dark bg-opacity-75" style="z-index: 1000">
+    <div class="spinner">
+        <div class="dot dot1"></div><div class="dot dot3"></div><div class="dot dot5"></div><div class="dot dot7"></div>
+        <div class="dot dot2"></div><div class="dot dot4"></div><div class="dot dot6"></div><div class="dot dot8"></div>
     </div>
-    <span class="disconnected-text text-white text-3xl">Connecting...</span>
+    <span class="disconnected-text text-white fs-4 mt-3">Connecting...</span>
 </div>
+
 <!-- Chat Window Area -->
-<div class="chat-window-area mx-auto p-4 h-full flex flex-col flex-1 justify-center relative">
-    <div class="chat-wrapper flex flex-1 h-full flex-col md:flex-row">
-        <div class="onlineusers-area w-full md:w-1/4 bg-neutral-800 rounded-lg flex flex-col relative">
-            <h2 class="text-2xl pb-4 bg-neutral-700 rounded-lg rounded-b-none p-4 mb-2 text-center select-none">
-                Online Users
-            </h2>
-            <div id="online-users" class="space-y-2 mb-4"></div>
-            <div class="user-profile-area flex flex-col mt-auto">
-                <div id="current-user" class="flex items-center select-none break-words py-4 px-2 bg-neutral-700
-                rounded-lg cursor-pointer hover:bg-neutral-600 tooltip" data-tip="Edit your profile"
-                     onclick="toggleSettings();">
-                    <span class="text-4xl mr-2" id="current-user-avatar">👤</span>
-                    <div class="flex flex-col w-0 flex-1 text-2xl">
-                        <div id="current-user-name" class="truncate">...</div>
-                        <div id="current-user-status" class="text-neutral-400 text-base truncate">...</div>
-                        <span class="current-user-online text-error text-base block">Offline</span>
+<div class="chat-window-area container-fluid h-100 p-3">
+    <div class="chat-wrapper row h-100 g-0">
+        <div class="onlineusers-area col-md-3 h-100 bg-secondary rounded-3 d-flex flex-column">
+            <h2 class="text-center p-3 mb-0 bg-dark bg-opacity-50 rounded-3">Online Users</h2>
+            <div id="online-users" class="flex-grow-1 p-2 overflow-auto"></div>
+            <div class="user-profile-area mt-auto">
+                <div id="current-user" class="d-flex align-items-center p-3 bg-dark bg-opacity-50 rounded-3 cursor-pointer"
+                     data-bs-toggle="modal" data-bs-target="#settings-modal" title="Edit your profile">
+                    <span class="fs-2 me-3" id="current-user-avatar">👤</span>
+                    <div class="flex-grow-1 text-truncate">
+                        <div id="current-user-name" class="fw-bold text-truncate">...</div>
+                        <div id="current-user-status" class="text-white-50 text-truncate small">...</div>
+                        <span class="current-user-online text-danger small">Offline</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Main chat area -->
-        <div class="chatbox-area rounded-lg pl-4 pt-0 w-3/4 max-h-full flex flex-col">
-            <div class="title-bar-area flex mb-4 cursor-pointer">
-                <h2 class="title neon font1 text-4xl font-bold w-full p-8 -my-4 overflow-ellipsis whitespace-nowrap overflow-hidden text-center"></h2>
+        <!-- Main Chat Area -->
+        <div class="chatbox-area col h-100 d-flex flex-column rounded-3 ps-4">
+            <div class="title-bar-area mb-3 text-center">
+                <h2 class="title neon font1 display-4 fw-bold p-4"></h2>
             </div>
-            <div class="flex justify-between">
-                <div class="tabs select-none" id="tabs"></div>
-            </div>
-            <div id="chat-container" class="chatwindow bg-neutral-800 p-4 rounded-tr-lg pb-0 flex-1 overflow-auto"></div>
-            <div class="input-area bg-neutral-800 p-4 flex rounded-b-lg">
-                <input id="message-input" class="flex-1 bg-neutral-700 rounded-lg px-4 py-2 mr-2" placeholder="Type a message...">
-                <button onclick="sendMessage()" class=" btn btn-outline hover:bg-transparent hover:border-current p-6 rounded-lg">
-                    Send
-                </button>
+            <div id="tabs" class="ms-1"></div>
+            <div id="chat-container" class="chatwindow flex-grow-1 bg-dark bg-opacity-50 p-3 pb-0 pe-0 rounded-top overflow-auto"></div>
+            <div class="input-area bg-dark bg-opacity-50 p-3 rounded-bottom">
+                <div class="input-group">
+                    <input id="message-input" type="text" class="form-control bg-secondary border-light text-light"
+                           maxlength="512" placeholder="Type a message...">
+                    <button onclick="sendMessage()" class="btn btn-outline-light">Send</button>
+                </div>
             </div>
         </div>
     </div>
 </div>
-<!-- Settings modal -->
-<div id="settings-modal" class="hidden fixed z-3 inset-0 bg-black/50 flex items-center justify-center">
-    <div class="bg-neutral-800 rounded-lg p-6 max-w-md w-full">
-        <h3 class="border-b border-neutral-700 pb-4 text-4xl mb-4 text-center">User Settings</h3>
-        <form id="settings-form" class="settings-area space-y-4 text-2xl">
-            <div>
-                <label class="block mb-2">Username</label>
-                <input id="username-input" maxlength="32" class="w-full text-xl bg-neutral-700 rounded p-2 input input-bordered">
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fs-3 text-center">User Settings</h5>
             </div>
-            <div>
-                <label class="block mb-2">Status Message (max 32 chars)</label>
-                <input id="status-input" maxlength="64" class="w-full text-xl bg-neutral-700 rounded p-2 input input-bordered">
+            <div class="modal-body">
+                <form id="settings-form">
+                    <div class="mb-3">
+                        <label class="form-label ps-1">Username</label>
+                        <input id="username-input" maxlength="32" class="form-control bg-secondary text-light border-dark">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label ps-1">Status Message</label>
+                        <input id="status-input" maxlength="64" class="form-control bg-secondary text-light border-dark">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label ps-1">Avatar</label>
+                        <input id="avatar-input" maxlength="2" class="form-control bg-secondary text-light border-dark w-auto">
+                    </div>
+                    <div class="mb-3">
+                        <button type="button" onclick="loadSettings(generateNewUser())"
+                                class="btn btn-outline-light w-100">Generate Random User Info</button>
+                    </div>
+                    <div class="d-grid gap-3">
+                        <button type="button" onclick="clearChatHistory()"
+                                class="btn btn-outline-danger">Clear Chat History</button>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary flex-grow-1"
+                                    data-bs-dismiss="modal" onclick="loadSettings()">Cancel</button>
+                            <button type="button" class="btn btn-primary flex-grow-1"
+                                    data-bs-dismiss="modal" onclick="saveSettings()">Save</button>
+                        </div>
+                    </div>
+                </form>
             </div>
-            <div>
-                <label class="block mb-2">Avatar</label>
-                <input id="avatar-input" maxlength="2" class="w-11 text-xl bg-neutral-700 rounded p-2 input input-bordered">
-            </div>
-            <div>
-                <label class="block mb-2">Generate Random User Info</label>
-                <button type="button" onclick="loadSettings(generateNewUser());"
-                        class="btn btn-outline btn-lg hover:bg-transparent hover:border-current text-xl px-4 py-2 rounded-lg">
-                    Generate User Info
-                </button>
-            </div>
-            <div class="flex items-center space-x-2 pt-4">
-                <div class="flex-1">
-                    <button type="button" onclick="clearChatHistory()"
-                            class="btn btn-error btn-outline btn-lg hover:bg-transparent hover:text-error px-4 py-2 rounded-lg text-xl">
-                        Clear Chat History
-                    </button>
-                </div>
-                <button type="button" class="btn btn-outline btn-lg hover:bg-transparent hover:border-current px-4 py-2 rounded-lg text-xl"
-                        onclick="loadSettings();toggleSettings();">
-                    Cancel
-                </button>
-                <button type="submit" class="btn btn-primary btn-outline btn-lg hover:bg-transparent hover:text-primary px-4 py-2 rounded-lg text-xl"
-                        onclick="saveSettings();toggleSettings();">
-                    Save
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
-<script src="client.js"></script>
+<script src="js/client.js"></script>
 </body>
 </html>

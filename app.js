@@ -10,15 +10,15 @@ let mainWindow; // Keep a global reference of the window object to prevent it fr
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1400, height: 900,
-        icon: path.join(__dirname, 'public/res/favicon.ico'), // Use 'icon.ico' for Windows
+        icon: path.join(__dirname, 'public/assets/favicon.ico'), // Use 'icon.ico' for Windows
         autoHideMenuBar: true, // Hide "Files, Edit, View etc..." bar
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            webSecurity: false, // Allow local network access (only for development!)
             enableBlinkFeatures: "OverlayScrollbars,HTMLImports",
-            //contextIsolation: true, // Enable context isolation for security
-            //nodeIntegration: false, // Prevent direct access to Node.js APIs from renderer
+            webSecurity: false, // Allow local network access TODO: Only for development!
+            // Separates Electron’s Node.js context from the renderer process, preventing global variable collisions
+            contextIsolation: true,
+            // Disables Node.js in the renderer process, ensuring operation in a pure browser-like context
+            nodeIntegration: false,
         }
     });
 
