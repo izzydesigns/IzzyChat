@@ -1,6 +1,6 @@
 {
-  "projectName": "IzzyChat",
-  "version": "0.2",
+  "projectName": "NanoChat",
+  "version": "0.3",
   "connectMsg": "Connected!",
   "userConnectMsg": " is now online",
   "userDisconnectMsg": " disconnected",

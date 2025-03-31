@@ -1,20 +1,97 @@
 /* Imports */
-@import url('https://fonts.googleapis.com/css2?family=Playwrite+DK+Loopet:wght@100..400&family=Winky+Sans:ital,wght@0,300..900;1,300..900&display=swap');
-
-/* Set page defaults/overrides */
-html, body{ font-family: 'Winky Sans', sans-serif; }
+@import url('https://fonts.googleapis.com/css2?family=B612+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Playwrite+DK+Loopet:wght@100..400&family=Winky+Sans:ital,wght@0,300..900;1,300..900&display=swap');
+/* Variables */
+$white-50: rgba(255,255,255,0.5); // 50% transparent white
+$white-75: rgba(255,255,255,0.75); // 75% transparent white
+$border-w: 0.1rem; // Width of all borders, outlines, and box-shadow borders
+$themes: ( // Theme color map (add more as desired)
+  dark: (
+    "body-bg": rgb(30, 30, 30), "color-primary": rgb(245, 245, 245),
+    "color-gray": rgb(130, 130, 130), "border-color": rgb(60, 60, 60),
+    "body-dim": rgb(20,20,20), "bg-dim-50": rgba(20, 20, 20, 0.5)
+  ),
+  light: (
+    "body-bg": rgb(220, 220, 220), "color-primary": rgb(30, 30, 30),
+    "color-gray": rgb(130, 130, 130), "border-color": rgb(160, 160, 160),
+    "body-dim": rgb(255, 255, 255), "bg-dim-50": rgba(255, 255, 255, 0.5)
+  )
+);
+/* Apply theme colors to specified elements */
+@each $theme, $values in $themes { [data-theme="#{$theme}"] { // Applied to html element
+  background-color: map-get($values, "body-bg") !important;
+  color: map-get($values, "color-primary") !important;
+  // Applies transparent bg color
+  .form-control, .form-select, #offline-overlay
+  { background-color: map-get($values, "bg-dim-50") !important; }
+  // Applies dimmed (or lightened) bg color
+  #online-users > .user-profile, .onlineusers-title, #tabs > .tab:not(.tab-inactive),
+  .btn-outline, .chatwindow, .input-container, #current-user
+  { background-color: map-get($values, "body-dim") !important; }
+  // Applies default bg color
+  .modal-content, .onlineusers-area
+  { background-color: map-get($values, "body-bg") !important; }
+  // Apply primary text color
+  .form-control, .form-select, .modal-content, .onlineusers-area, #tabs > .tab:hover,
+  .btn-outline:hover, .chatwindow, #tabs > .tab-active, #offline-overlay .disconnected-text
+  { color: map-get($values, "color-primary") !important; }
+  // Apply secondary text color
+  .user-status, #current-user-status, input::placeholder, .text-secondary, .btn-outline
+  { color: map-get($values, "color-gray") !important; }
+  // Apply border with border-color
+  .border-secondary, .bg-outline-secondary, .border, .btn-outline, .onlineusers-title,
+  #tabs > .tab-inactive:hover
+  { border-color: map-get($values, "border-color") !important; border-width: $border-w !important; }
+  // Apply gray outline on hover
+  .user-profile:hover, #current-user:hover, .form-control:hover, .form-select:hover
+  { outline: $border-w solid map-get($values, "color-gray") !important; transition: outline-color 0.2s ease !important; }
+  .user-profile, #current-user, .form-control, .form-select {outline: 0 solid transparent !important; }
+  // Input box-shadow :focus override
+  .form-control:focus, input:focus, select:focus
+  { box-shadow: 0 0 0 $border-w  map-get($values, "color-gray") !important; }
+  // Inactive tab override
+  .tab-inactive {
+    background-color: map-get($values, "bg-dim-50") !important;
+    color: map-get($values, "color-gray");
+    &.unread-msg{ animation: pulse 1.5s ease-in-out infinite; }
+  }
+}
+@keyframes pulse { 0%, 100% { color: map-get($values, "color-primary"); } 50% { color: map-get($values, "color-gray"); } }
+}
+/* Mobile specific styles (applied to body via client.js) */
+.mobile-layout {
+  font-size: 20px !important; // Set base font size
+  .onlineusers-area {
+    &.active { position: fixed !important; display: flex !important; } // Show when menu active
+    z-index: 3 !important; display: none !important; // Hidden by default
+    width: calc(100% - 2rem) !important; height: calc(100% - 2rem) !important;
+  }
+  #mobile-menu-btn {
+    display: block !important;
+    width:3.2rem !important;height:3.2rem !important;
+  }
+  .chat-wrapper { flex-direction: column !important; }
+  /* Font Size Adjustments */
+  .title { font-size: 2rem !important; } #current-user-name { font-size: 1.5rem !important; }
+  .input-area, .input-area button { font-size: 1.2rem !important; }
+  .chatwindow {
+    font-size: 1.1rem !important;
+    .message-wrapper > .timestamp { display: none !important; }
+  }
+}
+/* Global overrides */
+.cursor-pointer { cursor: pointer !important; } .cursor-default { cursor: default !important; }
+.font1{ font-family: 'Playwrite DK Loopet', sans-serif !important; } // Neon title font
+.font2{ font-family: 'Winky Sans', sans-serif !important; } // Cute default font
+.font-mono{ font-family: "B612 Mono", monospace !important; } // Timestamp font
 .hidden, .hide { display: none !important; }
-.cursor-pointer { cursor: pointer !important; }
-#chat-container, .input-area { background: rgba(255,255,255,0.1) !important; }
-/* Custom font override classes */
-.font1{ font-family: 'Playwrite DK Loopet', sans-serif !important; }
-.font2{ font-family: 'Winky Sans', sans-serif !important; }
-/* #current-user throb on hover animation */
-#current-user:hover { transform: scale(1.02); transition: transform 0.2s ease; }
-#current-user, .user-profile { transition: transform 0.2s ease; }
-/* Avatar glow */
-#current-user-avatar, #online-users .avatar { filter: drop-shadow(0 0 4px rgba(255,255,255,0.5)); }
-
+.z-max { z-index: 999999999 !important; }
+.h1 { font-size: 2rem !important; }
+.h2 { font-size: 1.7rem !important; }
+#tabs {
+  margin-bottom: -0.1rem !important;
+  .tab.tab-active {z-index: 2 !important;position: relative;}
+}
+#current-user-avatar, #online-users .user-avatar { filter: drop-shadow(0 0 4px $white-50); } /* Avatar glow */
 /* Offline overlay & loading spinner */
 @keyframes fade {0%, 100% { opacity: 0; }50% { opacity: 1; }}
 .spinner{width:80px; height:80px; margin-bottom:1rem; position:relative;}
@@ -23,72 +100,24 @@ html, body{ font-family: 'Winky Sans', sans-serif; }
 .dot5{top:100%; left:50%; animation:fade 1s linear infinite; animation-delay:0.5s;}.dot7{top:50%; left:0; animation:fade 1s linear infinite; animation-delay:0.75s;}
 .dot2{top:15%; left:85%; animation:fade 1s linear infinite; animation-delay:0.125s;}.dot4{top:85%; left:85%; animation:fade 1s linear infinite; animation-delay:0.375s;}
 .dot6{top:85%; left:15%; animation:fade 1s linear infinite; animation-delay:0.625s;}.dot8{top:15%; left:15%; animation:fade 1s linear infinite; animation-delay:0.875s;}
-
-/* Desktop Overrides */
-@media (min-width: 769px) {
-  #mobile-menu-btn { display: none !important; }
-}
-
-/* Mobile Overrides */
-@media (max-width: 768px) {
-  html { font-size: 20px !important; } // Set base font size
-  .chat-wrapper {
-    flex-direction: column !important;
-    gap: 0.5rem !important;
-  }
-  .onlineusers-area {
-    display: none !important; // Hidden by default on mobile
-    z-index: 3 !important;
-    width: calc(100% - 2rem) !important;
-    height: calc(100% - 2rem) !important;
-    &.active { // Show when menu active
-      position: fixed !important;
-      display: flex !important;
-    }
-  }
-  .chatbox-area {
-    width: 100% !important;
-    height: 100% !important;
-    padding-left: 0 !important;
-  }
-  #mobile-menu-btn { display: block !important; }
-  /* Font Size Adjustments */
-  .title { font-size: 2rem !important; }
-  .input-area, .input-area button { font-size: 1.2rem !important; }
-  #current-user-name { font-size: 1.5rem !important; }
-  .chatwindow { font-size: 1.1rem !important; }
-}
-
 /* Scrollbar */
-::-webkit-scrollbar {width: 6px;}
-::-webkit-scrollbar-track {background: transparent;}
-::-webkit-scrollbar-thumb {background: rgba(255, 255, 255, 0.5);border-radius: 10px;}
-::-webkit-scrollbar-thumb:hover {background: rgba(255, 255, 255, 0.7);}
-/* Firefox */* {scrollbar-width: thin;scrollbar-color: rgba(255, 255, 255, 0.5) transparent;}
-
+* { scrollbar-width: thin; scrollbar-color: $white-50 transparent; } /* Firefox */
+::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: $white-50; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: $white-75; }
 /* Title styling */
 @keyframes neonFlicker {
-  1%, 9%, 11%, /*19%, 21%, 29%, 31%,*/ 39%, 41%, /*49%, 51%,*/ 59%, 61%, 69%, 71%, /*79%, 81%, 89%, 91%,*/ 99% { opacity: 0.8; }
-  10%, /*20%, 30%,*/ 40%, /*50%,*/ 60%, 70%, /*80%, 90%,*/ 100% { opacity: 0; }
+  1%, 9%, 11%, 39%, 41%, 59%, 61%, 69%, 71%, 99% { opacity: 0.8; }
+  10%, 40%, 60%, 70%, 100% { opacity: 0; }
 }
 .neon {
-  position: relative;
-  color: white;
-  text-shadow: 0 0 0.2rem white;
+  position: relative; color: white; text-shadow: 0 0 0.2rem white;
   &::before {
-    content: attr(data-text);
-    position: absolute;
-    left: -0.1rem;
-    width: 100%;
-    pointer-events: none;
-    color: transparent;
-    animation: neonFlicker 6s ease-in-out infinite;
-    text-shadow: 0 0 0.4rem white,
-    0.1rem 0 0.2rem #28D7FE, 0.2rem 0 0.2rem #28D7FE, 0.4rem 0 0.2rem #28D7FE,
-    0.1rem 0 0.1rem #1041FF, 0.2rem 0 0rem #1041FF, 0.4rem 0 0rem #1041FF,
-    0.1rem 0 0.1rem #1041FF, 0.2rem 0 0.1rem #1041FF, 0.4rem 0 0rem #1041FF,
-    0.1rem 0 0.8rem #1041FF, 0.2rem 0 0.8rem #1041FF, 0.4rem 0 0.8rem #1041FF,
-    0.2rem 0 0.5rem #1041FF, 0.1rem 0 0.5rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.4rem 0 0.5rem #1041FF,
-    0.1rem 0 2rem #1041FF, 0.2rem 0 2rem #1041FF, 0.4rem 0 2rem #1041FF;
+    content: attr(data-text); pointer-events: none;
+    position: absolute; width: 100%; left: -0.1rem; color: transparent;
+    //animation: neonFlicker 6s ease-in-out infinite; // Flickering effect
+    //text-shadow: 0 0 0.4rem white, 0.1rem 0 0.2rem #28D7FE, 0.2rem 0 0.2rem #28D7FE, 0.4rem 0 0.2rem #28D7FE, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0rem #1041FF, 0.4rem 0 0rem #1041FF, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0.1rem #1041FF, 0.4rem 0 0rem #1041FF, 0.1rem 0 0.8rem #1041FF, 0.2rem 0 0.8rem #1041FF, 0.4rem 0 0.8rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.1rem 0 0.5rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.4rem 0 0.5rem #1041FF, 0.1rem 0 2rem #1041FF, 0.2rem 0 2rem #1041FF, 0.4rem 0 2rem #1041FF;
   }
 }
+
+

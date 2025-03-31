@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title></title>
@@ -11,52 +11,50 @@
     <script src="js/libs/bootstrap.bundle.min.js"></script>
     <script src="js/libs/socket.io.min.js"></script>
 </head>
-<body class="bg-dark text-light vh-100 overflow-hidden">
+<body class="bg-transparent vh-100 overflow-hidden font2">
 <!-- Mobile Menu Button -->
-<button id="mobile-menu-btn" style="z-index: 999; width: 3rem; height: 3rem;"
-        class="d-md-none fixed-top start-0 m-4 btn btn-outline-light rounded-circle">☰</button>
+<button id="mobile-menu-btn" class="d-md-none fixed-top m-4 btn btn-outline rounded-circle" onclick="toggleMobileMenu()">☰</button>
 
 <!-- Offline Overlay -->
-<div id="offline-overlay" class="w-100 h-100 position-fixed d-flex flex-column align-items-center
-    justify-content-center bg-dark bg-opacity-75" style="z-index: 1000">
+<div id="offline-overlay" class="w-100 h-100 position-fixed d-flex flex-column align-items-center justify-content-center z-max">
     <div class="spinner">
         <div class="dot dot1"></div><div class="dot dot3"></div><div class="dot dot5"></div><div class="dot dot7"></div>
         <div class="dot dot2"></div><div class="dot dot4"></div><div class="dot dot6"></div><div class="dot dot8"></div>
     </div>
-    <span class="disconnected-text text-white fs-4 mt-3">Connecting...</span>
+    <span class="disconnected-text fs-4 mt-3">Connecting...</span>
 </div>
 
 <!-- Chat Window Area -->
 <div class="chat-window-area container-fluid h-100 p-3">
     <div class="chat-wrapper row h-100 g-0">
-        <div class="onlineusers-area col-md-3 h-100 bg-secondary rounded-3 d-flex flex-column">
-            <h2 class="text-center p-3 mb-0 bg-dark bg-opacity-50 rounded-3">Online Users</h2>
+        <!-- Online Users Area -->
+        <div class="onlineusers-area col-md-3 h-100 border rounded-3 d-flex flex-column">
+            <div class="onlineusers-title h2 text-center p-3 mb-0 rounded-3 border-bottom">Online Users</div>
             <div id="online-users" class="flex-grow-1 p-2 overflow-auto"></div>
             <div class="user-profile-area mt-auto">
-                <div id="current-user" class="d-flex align-items-center p-3 bg-dark bg-opacity-50 rounded-3 cursor-pointer"
+                <div id="current-user" class="d-flex align-items-center p-3 rounded-3 cursor-pointer"
                      data-bs-toggle="modal" data-bs-target="#settings-modal" title="Edit your profile">
-                    <span class="fs-2 me-3" id="current-user-avatar">👤</span>
+                    <span class="h2 mb-0 me-3" id="current-user-avatar">👤</span>
                     <div class="flex-grow-1 text-truncate">
                         <div id="current-user-name" class="fw-bold text-truncate">...</div>
-                        <div id="current-user-status" class="text-white-50 text-truncate small">...</div>
+                        <div id="current-user-status" class="text-truncate small">...</div>
                         <span class="current-user-online text-danger small">Offline</span>
                     </div>
                 </div>
             </div>
         </div>
-
         <!-- Main Chat Area -->
-        <div class="chatbox-area col h-100 d-flex flex-column rounded-3 ps-4">
+        <div class="chatbox-area col h-100 d-flex flex-column rounded-3 ps-0 w-md-100 h-md-100 ps-md-3">
             <div class="title-bar-area mb-3 text-center">
-                <h2 class="title neon font1 display-4 fw-bold p-4"></h2>
+                <div class="title h1 neon font1 fw-bold p-2 pb-0"></div>
             </div>
             <div id="tabs" class="ms-1"></div>
-            <div id="chat-container" class="chatwindow flex-grow-1 bg-dark bg-opacity-50 p-3 pb-0 pe-0 rounded-top overflow-auto"></div>
-            <div class="input-area bg-dark bg-opacity-50 p-3 rounded-bottom">
+            <div id="chat-container" class="chatwindow flex-grow-1 p-3 pb-0 pe-0 rounded-top overflow-auto border border-bottom-0"></div>
+            <div class="input-container p-3 rounded-bottom border border-top-0">
                 <div class="input-group">
-                    <input id="message-input" type="text" class="form-control bg-secondary border-light text-light"
+                    <input id="message-input" type="text" class="form-control bg-secondary border border-end-0"
                            maxlength="512" placeholder="Type a message...">
-                    <button onclick="sendMessage()" class="btn btn-outline-light">Send</button>
+                    <button id="send-button" onclick="sendMessage()" class="btn btn-outline">Send</button>
                 </div>
             </div>
         </div>
@@ -66,35 +64,42 @@
 <!-- Settings Modal -->
 <div id="settings-modal" class="modal">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-dark border-secondary text-light">
+        <div class="modal-content bg-opacity-75 border-secondary">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title fs-3 text-center">User Settings</h5>
+                <h5 class="modal-title text-center">User Settings</h5>
             </div>
             <div class="modal-body">
                 <form id="settings-form">
                     <div class="mb-3">
                         <label class="form-label ps-1">Username</label>
-                        <input id="username-input" maxlength="32" class="form-control bg-secondary text-light border-dark">
+                        <input id="username-input" maxlength="32" class="form-control bg-outline-secondary border">
                     </div>
                     <div class="mb-3">
                         <label class="form-label ps-1">Status Message</label>
-                        <input id="status-input" maxlength="64" class="form-control bg-secondary text-light border-dark">
+                        <input id="status-input" maxlength="64" class="form-control bg-outline-secondary border">
                     </div>
                     <div class="mb-3">
                         <label class="form-label ps-1">Avatar</label>
-                        <input id="avatar-input" maxlength="2" class="form-control bg-secondary text-light border-dark w-auto">
+                        <input id="avatar-input" maxlength="2" class="form-control bg-outline-secondary border w-auto">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label ps-1">Theme</label>
+                        <select id="theme-select" class="form-select bg-outline-secondary border">
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <button type="button" onclick="loadSettings(generateNewUser())"
-                                class="btn btn-outline-light w-100">Generate Random User Info</button>
+                                class="btn btn-outline-secondary w-100">Generate Random User Info</button>
                     </div>
                     <div class="d-grid gap-3">
                         <button type="button" onclick="clearChatHistory()"
                                 class="btn btn-outline-danger">Clear Chat History</button>
                         <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-secondary flex-grow-1"
+                            <button type="button" class="btn btn-outline-secondary flex-grow-1"
                                     data-bs-dismiss="modal" onclick="loadSettings()">Cancel</button>
-                            <button type="button" class="btn btn-primary flex-grow-1"
+                            <button type="button" class="btn btn-outline-primary flex-grow-1"
                                     data-bs-dismiss="modal" onclick="saveSettings()">Save</button>
                         </div>
                     </div>

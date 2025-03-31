@@ -1,23 +1,159 @@
 /* Imports */
-@import url("https://fonts.googleapis.com/css2?family=Playwrite+DK+Loopet:wght@100..400&family=Winky+Sans:ital,wght@0,300..900;1,300..900&display=swap");
-/* Set page defaults/overrides */
-html, body {
-  font-family: "Winky Sans", sans-serif;
+@import url("https://fonts.googleapis.com/css2?family=B612+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Playwrite+DK+Loopet:wght@100..400&family=Winky+Sans:ital,wght@0,300..900;1,300..900&display=swap");
+/* Variables */
+/* Apply theme colors to specified elements */
+[data-theme=dark] {
+  background-color: rgb(30, 30, 30) !important;
+  color: rgb(245, 245, 245) !important;
+}
+[data-theme=dark] .form-control, [data-theme=dark] .form-select, [data-theme=dark] #offline-overlay {
+  background-color: rgba(20, 20, 20, 0.5) !important;
+}
+[data-theme=dark] #online-users > .user-profile, [data-theme=dark] .onlineusers-title, [data-theme=dark] #tabs > .tab:not(.tab-inactive),
+[data-theme=dark] .btn-outline, [data-theme=dark] .chatwindow, [data-theme=dark] .input-container, [data-theme=dark] #current-user {
+  background-color: rgb(20, 20, 20) !important;
+}
+[data-theme=dark] .modal-content, [data-theme=dark] .onlineusers-area {
+  background-color: rgb(30, 30, 30) !important;
+}
+[data-theme=dark] .form-control, [data-theme=dark] .form-select, [data-theme=dark] .modal-content, [data-theme=dark] .onlineusers-area, [data-theme=dark] #tabs > .tab:hover,
+[data-theme=dark] .btn-outline:hover, [data-theme=dark] .chatwindow, [data-theme=dark] #tabs > .tab-active, [data-theme=dark] #offline-overlay .disconnected-text {
+  color: rgb(245, 245, 245) !important;
+}
+[data-theme=dark] .user-status, [data-theme=dark] #current-user-status, [data-theme=dark] input::placeholder, [data-theme=dark] .text-secondary, [data-theme=dark] .btn-outline {
+  color: rgb(130, 130, 130) !important;
+}
+[data-theme=dark] .border-secondary, [data-theme=dark] .bg-outline-secondary, [data-theme=dark] .border, [data-theme=dark] .btn-outline, [data-theme=dark] .onlineusers-title,
+[data-theme=dark] #tabs > .tab-inactive:hover {
+  border-color: rgb(60, 60, 60) !important;
+  border-width: 0.1rem !important;
+}
+[data-theme=dark] .user-profile:hover, [data-theme=dark] #current-user:hover, [data-theme=dark] .form-control:hover, [data-theme=dark] .form-select:hover {
+  outline: 0.1rem solid rgb(130, 130, 130) !important;
+  transition: outline-color 0.2s ease !important;
+}
+[data-theme=dark] .user-profile, [data-theme=dark] #current-user, [data-theme=dark] .form-control, [data-theme=dark] .form-select {
+  outline: 0 solid transparent !important;
+}
+[data-theme=dark] .form-control:focus, [data-theme=dark] input:focus, [data-theme=dark] select:focus {
+  box-shadow: 0 0 0 0.1rem rgb(130, 130, 130) !important;
+}
+[data-theme=dark] .tab-inactive {
+  background-color: rgba(20, 20, 20, 0.5) !important;
+  color: rgb(130, 130, 130);
+}
+[data-theme=dark] .tab-inactive.unread-msg {
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
-.hidden, .hide {
+@keyframes pulse {
+  0%, 100% {
+    color: rgb(245, 245, 245);
+  }
+  50% {
+    color: rgb(130, 130, 130);
+  }
+}
+[data-theme=light] {
+  background-color: rgb(220, 220, 220) !important;
+  color: rgb(30, 30, 30) !important;
+}
+[data-theme=light] .form-control, [data-theme=light] .form-select, [data-theme=light] #offline-overlay {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+}
+[data-theme=light] #online-users > .user-profile, [data-theme=light] .onlineusers-title, [data-theme=light] #tabs > .tab:not(.tab-inactive),
+[data-theme=light] .btn-outline, [data-theme=light] .chatwindow, [data-theme=light] .input-container, [data-theme=light] #current-user {
+  background-color: rgb(255, 255, 255) !important;
+}
+[data-theme=light] .modal-content, [data-theme=light] .onlineusers-area {
+  background-color: rgb(220, 220, 220) !important;
+}
+[data-theme=light] .form-control, [data-theme=light] .form-select, [data-theme=light] .modal-content, [data-theme=light] .onlineusers-area, [data-theme=light] #tabs > .tab:hover,
+[data-theme=light] .btn-outline:hover, [data-theme=light] .chatwindow, [data-theme=light] #tabs > .tab-active, [data-theme=light] #offline-overlay .disconnected-text {
+  color: rgb(30, 30, 30) !important;
+}
+[data-theme=light] .user-status, [data-theme=light] #current-user-status, [data-theme=light] input::placeholder, [data-theme=light] .text-secondary, [data-theme=light] .btn-outline {
+  color: rgb(130, 130, 130) !important;
+}
+[data-theme=light] .border-secondary, [data-theme=light] .bg-outline-secondary, [data-theme=light] .border, [data-theme=light] .btn-outline, [data-theme=light] .onlineusers-title,
+[data-theme=light] #tabs > .tab-inactive:hover {
+  border-color: rgb(160, 160, 160) !important;
+  border-width: 0.1rem !important;
+}
+[data-theme=light] .user-profile:hover, [data-theme=light] #current-user:hover, [data-theme=light] .form-control:hover, [data-theme=light] .form-select:hover {
+  outline: 0.1rem solid rgb(130, 130, 130) !important;
+  transition: outline-color 0.2s ease !important;
+}
+[data-theme=light] .user-profile, [data-theme=light] #current-user, [data-theme=light] .form-control, [data-theme=light] .form-select {
+  outline: 0 solid transparent !important;
+}
+[data-theme=light] .form-control:focus, [data-theme=light] input:focus, [data-theme=light] select:focus {
+  box-shadow: 0 0 0 0.1rem rgb(130, 130, 130) !important;
+}
+[data-theme=light] .tab-inactive {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+  color: rgb(130, 130, 130);
+}
+[data-theme=light] .tab-inactive.unread-msg {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    color: rgb(30, 30, 30);
+  }
+  50% {
+    color: rgb(130, 130, 130);
+  }
+}
+/* Mobile specific styles (applied to body via client.js) */
+.mobile-layout {
+  font-size: 20px !important;
+  /* Font Size Adjustments */
+}
+.mobile-layout .onlineusers-area {
+  z-index: 3 !important;
+  display: none !important;
+  width: calc(100% - 2rem) !important;
+  height: calc(100% - 2rem) !important;
+}
+.mobile-layout .onlineusers-area.active {
+  position: fixed !important;
+  display: flex !important;
+}
+.mobile-layout #mobile-menu-btn {
+  display: block !important;
+  width: 3.2rem !important;
+  height: 3.2rem !important;
+}
+.mobile-layout .chat-wrapper {
+  flex-direction: column !important;
+}
+.mobile-layout .title {
+  font-size: 2rem !important;
+}
+.mobile-layout #current-user-name {
+  font-size: 1.5rem !important;
+}
+.mobile-layout .input-area, .mobile-layout .input-area button {
+  font-size: 1.2rem !important;
+}
+.mobile-layout .chatwindow {
+  font-size: 1.1rem !important;
+}
+.mobile-layout .chatwindow .message-wrapper > .timestamp {
   display: none !important;
 }
 
+/* Global overrides */
 .cursor-pointer {
   cursor: pointer !important;
 }
 
-#chat-container, .input-area {
-  background: rgba(255, 255, 255, 0.1) !important;
+.cursor-default {
+  cursor: default !important;
 }
 
-/* Custom font override classes */
 .font1 {
   font-family: "Playwrite DK Loopet", sans-serif !important;
 }
@@ -26,21 +162,37 @@ html, body {
   font-family: "Winky Sans", sans-serif !important;
 }
 
-/* #current-user throb on hover animation */
-#current-user:hover {
-  transform: scale(1.02);
-  transition: transform 0.2s ease;
+.font-mono {
+  font-family: "B612 Mono", monospace !important;
 }
 
-#current-user, .user-profile {
-  transition: transform 0.2s ease;
+.hidden, .hide {
+  display: none !important;
 }
 
-/* Avatar glow */
-#current-user-avatar, #online-users .avatar {
+.z-max {
+  z-index: 999999999 !important;
+}
+
+.h1 {
+  font-size: 2rem !important;
+}
+
+.h2 {
+  font-size: 1.7rem !important;
+}
+
+#tabs {
+  margin-bottom: -0.1rem !important;
+}
+#tabs .tab.tab-active {
+  z-index: 2 !important;
+  position: relative;
+}
+
+#current-user-avatar, #online-users .user-avatar {
   filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
-}
-
+} /* Avatar glow */
 /* Offline overlay & loading spinner */
 @keyframes fade {
   0%, 100% {
@@ -122,54 +274,11 @@ html, body {
   animation-delay: 0.875s;
 }
 
-/* Desktop Overrides */
-@media (min-width: 769px) {
-  #mobile-menu-btn {
-    display: none !important;
-  }
-}
-/* Mobile Overrides */
-@media (max-width: 768px) {
-  html {
-    font-size: 20px !important;
-  }
-  .chat-wrapper {
-    flex-direction: column !important;
-    gap: 0.5rem !important;
-  }
-  .onlineusers-area {
-    display: none !important;
-    z-index: 3 !important;
-    width: calc(100% - 2rem) !important;
-    height: calc(100% - 2rem) !important;
-  }
-  .onlineusers-area.active {
-    position: fixed !important;
-    display: flex !important;
-  }
-  .chatbox-area {
-    width: 100% !important;
-    height: 100% !important;
-    padding-left: 0 !important;
-  }
-  #mobile-menu-btn {
-    display: block !important;
-  }
-  /* Font Size Adjustments */
-  .title {
-    font-size: 2rem !important;
-  }
-  .input-area, .input-area button {
-    font-size: 1.2rem !important;
-  }
-  #current-user-name {
-    font-size: 1.5rem !important;
-  }
-  .chatwindow {
-    font-size: 1.1rem !important;
-  }
-}
 /* Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
+} /* Firefox */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -184,13 +293,7 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.7);
-}
-
-/* Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
+  background: rgba(255, 255, 255, 0.75);
 }
 
 /* Title styling */
@@ -209,11 +312,9 @@ html, body {
 }
 .neon::before {
   content: attr(data-text);
-  position: absolute;
-  left: -0.1rem;
-  width: 100%;
   pointer-events: none;
+  position: absolute;
+  width: 100%;
+  left: -0.1rem;
   color: transparent;
-  animation: neonFlicker 6s ease-in-out infinite;
-  text-shadow: 0 0 0.4rem white, 0.1rem 0 0.2rem #28D7FE, 0.2rem 0 0.2rem #28D7FE, 0.4rem 0 0.2rem #28D7FE, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0rem #1041FF, 0.4rem 0 0rem #1041FF, 0.1rem 0 0.1rem #1041FF, 0.2rem 0 0.1rem #1041FF, 0.4rem 0 0rem #1041FF, 0.1rem 0 0.8rem #1041FF, 0.2rem 0 0.8rem #1041FF, 0.4rem 0 0.8rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.1rem 0 0.5rem #1041FF, 0.2rem 0 0.5rem #1041FF, 0.4rem 0 0.5rem #1041FF, 0.1rem 0 2rem #1041FF, 0.2rem 0 2rem #1041FF, 0.4rem 0 2rem #1041FF;
 }

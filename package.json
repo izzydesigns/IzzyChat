@@ -1,5 +1,5 @@
 {
-  "name": "izzychat",
+  "name": "nanochat",
   "description": "A simple peer-to-peer encrypted chat application",
   "main": "app.js",
   "scripts": {
@@ -7,10 +7,12 @@
   },
   "type": "module",
   "dependencies": {
-    "socket.io": "^4.8.1",
+    "bootstrap": "^5.3.3",
+    "electron": "^35.0.2",
     "express": "^4.21.2",
-    "uuid": "^11.1.0",
+    "jquery": "^3.7.1",
     "scss": "^0.2.4",
-    "electron": "^35.0.2"
+    "socket.io": "^4.8.1",
+    "uuid": "^11.1.0"
   }
 }
